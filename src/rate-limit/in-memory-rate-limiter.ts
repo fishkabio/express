@@ -1,5 +1,5 @@
 import { ExpressFunction, ExpressNextFunction, ExpressRequest, ExpressResponse } from '../utils/express.utils';
-import { addRateLimitHeaders, msToSeconds } from './rate-limit.private';
+import { addRateLimitHeaders, msToSeconds } from './rate-limit';
 import { RateLimitConfig, RateLimitResult } from './rate-limit.types';
 
 const MILLIS_PER_SECOND = 1000;

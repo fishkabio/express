@@ -1,5 +1,5 @@
 import { ExpressResponse } from '../utils/express.utils';
-import { addRateLimitHeaders, msToSeconds } from './rate-limit.private';
+import { addRateLimitHeaders, msToSeconds } from './rate-limit';
 import { RateLimitResult } from './rate-limit.types';
 
 describe('rate-limit.utils', () => {

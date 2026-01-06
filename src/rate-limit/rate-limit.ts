@@ -12,6 +12,7 @@ const MILLIS_PER_SECOND = 1000;
  * - X-RateLimit-Remaining: Remaining quota in the current window
  * - X-RateLimit-Reset: Time remaining in the current window (in seconds)
  * - X-RateLimit-Policy: Quota policies associated with the client
+ * @Internal
  */
 export function addRateLimitHeaders(
   res: ExpressResponse,
@@ -34,6 +35,7 @@ export function addRateLimitHeaders(
 
 /**
  * Converts milliseconds to seconds, rounding up.
+ * @Internal
  */
 export function msToSeconds(ms: number): number {
   return Math.ceil(ms / MILLIS_PER_SECOND);

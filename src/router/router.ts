@@ -1,6 +1,10 @@
-import { Assertion, ObjectAssertion } from '@fishka/assertions';
+import { Assertion, assertTruthy, callValueAssertion, ObjectAssertion, validateObject } from '@fishka/assertions';
+import * as url from 'url';
+import { catchRouteErrors } from '../middleware/catch-all.middleware';
 import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
-import { ExpressRequest, ExpressResponse } from '../utils/express.utils';
+import { BAD_REQUEST } from '../utils/common';
+import { wrapAsApiResponse } from '../utils/conversion';
+import { ExpressApplication, ExpressRequest, ExpressResponse } from '../utils/express.utils';
 
 /** Express API allows handlers to return response in the raw form. */
 export type ResponseOrValue<ResponseEntity> = ApiResponse<ResponseEntity> | ResponseEntity;
@@ -87,3 +91,283 @@ export type RouteRegistrationInfo = (
   | { method: 'put'; route: PutEndpoint }
   | { method: 'delete'; route: DeleteEndpoint }
 ) & { path: string };
+
+// ============================================================================
+// Internal implementation details
+// ============================================================================
+
+/**
+ * @Internal
+ * Registers a GET route.
+ */
+export const mountGet = (app: ExpressApplication, path: string, endpoint: GetEndpoint | GetListEndpoint): void =>
+  mount(app, { method: 'get', route: endpoint, path });
+
+/**
+ * @Internal
+ * Registers a POST route.
+ */
+export const mountPost = <Req, Res>(app: ExpressApplication, path: string, endpoint: PostEndpoint<Req, Res>): void =>
+  mount(app, { method: 'post', route: endpoint as PostEndpoint<unknown, unknown>, path });
+
+/**
+ * @Internal
+ * Registers a PATCH route.
+ */
+export const mountPatch = <Req, Res>(app: ExpressApplication, path: string, endpoint: PatchEndpoint<Req, Res>): void =>
+  mount(app, { method: 'patch', route: endpoint as PatchEndpoint<unknown, unknown>, path });
+
+/**
+ * @Internal
+ * Registers a PUT route.
+ */
+export const mountPut = <Req, Res>(app: ExpressApplication, path: string, endpoint: PutEndpoint<Req, Res>): void =>
+  mount(app, { method: 'put', route: endpoint as PutEndpoint<unknown, unknown>, path });
+
+/**
+ * @Internal
+ * Registers a DELETE route.
+ */
+export const mountDelete = (app: ExpressApplication, path: string, endpoint: DeleteEndpoint): void =>
+  mount(app, { method: 'delete', route: endpoint, path });
+
+/**
+ * @Internal
+ * Mounts a route with the given method, endpoint, and path.
+ */
+export function mount(app: ExpressApplication, { method, route, path }: RouteRegistrationInfo): void {
+  const fullPath = `/${path}`;
+  const handler = createRouteHandler(method, route);
+  app[method](fullPath, catchRouteErrors(handler));
+}
+
+/**
+ * @Internal
+ * Creates a route handler from an endpoint definition.
+ */
+function createRouteHandler(
+  method: RouteRegistrationInfo['method'],
+  endpoint: GetEndpoint | GetListEndpoint | PostEndpoint | PutEndpoint | PatchEndpoint | DeleteEndpoint,
+) {
+  return async (req: ExpressRequest, res: ExpressResponse, _next: unknown): Promise<void> => {
+    let result: ResponseOrValue<unknown>;
+
+    switch (method) {
+      case 'post':
+      case 'put':
+      case 'patch':
+        result = await runPppHandler(endpoint as PostEndpoint<unknown, unknown>, req, res);
+        break;
+      case 'delete':
+        result = await runDeleteHandler(endpoint as DeleteEndpoint, req, res);
+        break;
+      case 'get':
+        result = await runGetHandler(endpoint as GetEndpoint<unknown>, req, res);
+        break;
+    }
+    const response = wrapAsApiResponse(result);
+    response.status = response.status || 200;
+    res.status(response.status);
+    res.send(response);
+  };
+}
+
+/**
+ * @Internal
+ * Validates request parameters using custom validators.
+ */
+function validateUrlParameters(
+  req: ExpressRequest,
+  {
+    $path,
+    $query,
+  }: {
+    $path?: UrlTokensValidator;
+    $query?: UrlTokensValidator;
+  },
+): void {
+  for (const key in req.params) {
+    const value = req.params[key];
+    const validator = $path?.[key];
+    if (validator) {
+      callValueAssertion(value, validator, BAD_REQUEST);
+    }
+  }
+
+  const parsedUrl = url.parse(req.url, true);
+  for (const key in parsedUrl.query) {
+    const value = parsedUrl.query[key];
+    const validator = $query?.[key];
+    if (validator) {
+      callValueAssertion(value, validator, BAD_REQUEST);
+    }
+  }
+}
+
+/**
+ * @Internal
+ * Runs GET handler with optional middleware.
+ */
+async function runGetHandler<ResponseResultType>(
+  route: GetEndpoint<ResponseResultType>,
+  req: ExpressRequest,
+  res: ExpressResponse,
+): Promise<ResponseOrValue<ResponseResultType>> {
+  const requestContext = newRequestContext<void>(undefined, req, res);
+  validateUrlParameters(req, { $path: route.$path, $query: route.$query });
+  return await executeWithMiddleware<RequestContext<void>, ResponseResultType>(
+    () => route.run(requestContext),
+    route.middlewares || [],
+    requestContext,
+  );
+}
+
+/**
+ * @Internal
+ * Runs DELETE handler with optional middleware.
+ */
+async function runDeleteHandler(
+  route: DeleteEndpoint,
+  req: ExpressRequest,
+  res: ExpressResponse,
+): Promise<ResponseOrValue<void>> {
+  const requestContext = newRequestContext<void>(undefined, req, res);
+  validateUrlParameters(req, { $path: route.$path, $query: route.$query });
+  await executeWithMiddleware<RequestContext<void>, void>(
+    () => route.run(requestContext),
+    route.middlewares || [],
+    requestContext,
+  );
+  return undefined;
+}
+
+type PppHandler<Req, Res> = PostEndpoint<Req, Res> | PutEndpoint<Req, Res> | PatchEndpoint<Req, Res>;
+
+/**
+ * @Internal
+ * Runs POST/PUT/PATCH handler with optional middleware.
+ */
+async function runPppHandler<RequestBodyType, ResponseResultType>(
+  route: PppHandler<RequestBodyType, ResponseResultType>,
+  req: ExpressRequest,
+  res: ExpressResponse,
+): Promise<ResponseOrValue<ResponseResultType>> {
+  const validator = route.$body;
+  const apiRequest = req.body;
+
+  // Handle validation based on whether validator is an object or function
+  // Check if validator is an object (ObjectAssertion) vs function (ValueAssertion)
+  // Use type assertions to handle the conditional type
+  if (typeof validator === 'object' && validator !== null) {
+    // It's an ObjectAssertion - use validateObject
+    const isEmptyValidator = Object.keys(validator).length === 0;
+    const error = validateObject(
+      apiRequest,
+      validator as ObjectAssertion<RequestBodyType>,
+      `${BAD_REQUEST}: request body`,
+      {
+        failOnUnknownFields: !isEmptyValidator,
+      },
+    );
+    assertTruthy(!error, error);
+  } else {
+    // It's a ValueAssertion (function) - use callValueAssertion
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    callValueAssertion(apiRequest, validator as any, `${BAD_REQUEST}: request body`);
+  }
+
+  const requestContext = newRequestContext<RequestBodyType>(apiRequest as RequestBodyType, req, res);
+  validateUrlParameters(req, { $path: route.$path, $query: route.$query });
+
+  requestContext.data.body = req.body;
+
+  return await executeWithMiddleware<RequestContext<RequestBodyType>, ResponseResultType>(
+    () => route.run(requestContext),
+    (route.middlewares || []) as EndpointMiddleware<RequestContext<RequestBodyType>>[],
+    requestContext,
+  );
+}
+
+/**
+ * @Internal
+ * Executes handler with middleware chain.
+ */
+async function executeWithMiddleware<Context, TResult>(
+  run: () => Promise<ResponseOrValue<TResult>>,
+  middlewares: Array<EndpointMiddleware<Context>>,
+  context: Context,
+): Promise<ResponseOrValue<TResult>> {
+  const current = async (index: number): Promise<ResponseOrValue<TResult>> => {
+    if (index >= middlewares.length) {
+      const result = await run();
+      return wrapAsApiResponse(result);
+    }
+    const middleware = middlewares[index];
+    return (await middleware(() => current(index + 1), context)) as ResponseOrValue<TResult>;
+  };
+  return await current(0);
+}
+
+/**
+ * @Internal
+ * Proxies & adds extra safety checks on access to RequestContext.
+ */
+class RequestContextImpl<RequestBodyType> implements RequestContext<RequestBodyType> {
+  constructor(readonly data: RequestContext<RequestBodyType>) {}
+
+  get body(): RequestBodyType {
+    return this.data.body;
+  }
+
+  get req(): ExpressRequest {
+    return this.data.req;
+  }
+
+  get res(): ExpressResponse {
+    return this.data.res;
+  }
+
+  get params(): { get(key: string): string; tryGet(key: string): string | undefined } {
+    return this.data.params;
+  }
+
+  get query(): { get(key: string): string | undefined } {
+    return this.data.query;
+  }
+
+  get context(): Map<string, unknown> {
+    return this.data.context;
+  }
+}
+
+/**
+ * @Internal
+ * Creates a new RequestContext instance.
+ */
+function newRequestContext<RequestBodyType>(
+  openapiRequest: RequestBodyType,
+  req: ExpressRequest,
+  res: ExpressResponse,
+): RequestContextImpl<RequestBodyType> {
+  return new RequestContextImpl<RequestBodyType>({
+    body: openapiRequest,
+    req,
+    res,
+    params: {
+      get: (key: string): string => {
+        const value = req.params[key];
+        assertTruthy(value, `Path parameter '${key}' not found`);
+        return value;
+      },
+      tryGet: (key: string): string | undefined => req.params[key],
+    },
+    query: {
+      get: (key: string): string | undefined => {
+        const parsedUrl = url.parse(req.url, true);
+        const value = parsedUrl.query[key];
+        return Array.isArray(value) ? value[0] : value;
+      },
+    },
+    context: new Map(),
+  });
+}

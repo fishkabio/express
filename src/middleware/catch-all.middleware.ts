@@ -1,7 +1,7 @@
 import { NextFunction } from 'express';
 import { ApiResponse } from '../protocol/api.types';
-import { BAD_REQUEST, INTERNAL_ERROR_STATUS, parseStatusCodeFromErrorMessageToken } from '../utils/common.private';
-import { wrapAsApiResponse } from '../utils/conversion.private';
+import { BAD_REQUEST, INTERNAL_ERROR_STATUS, parseStatusCodeFromErrorMessageToken } from '../utils/common';
+import { wrapAsApiResponse } from '../utils/conversion';
 import { ExpressFunction, ExpressRequest, ExpressResponse } from '../utils/express.utils';
 
 function buildApiResponse(error: unknown): ApiResponse & { status: number } {

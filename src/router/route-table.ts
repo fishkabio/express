@@ -2,13 +2,17 @@ import { ExpressApplication } from '../utils/express.utils';
 import {
   DeleteEndpoint,
   GetEndpoint,
+  mountDelete,
+  mountGet,
+  mountPatch,
+  mountPost,
+  mountPut,
   PatchEndpoint,
   PostEndpoint,
   PutEndpoint,
   RequestContext,
   ResponseOrValue,
 } from './router';
-import { mountDelete, mountGet, mountPatch, mountPost, mountPut } from './router.private';
 
 /**
  * Helper utility for organizing and mounting routes.
