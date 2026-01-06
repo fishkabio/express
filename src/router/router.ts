@@ -10,8 +10,8 @@ import * as url from 'url';
 import { catchRouteErrors } from '../middleware/catch-all.middleware';
 import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
 import { URL_PARAMETER_INFO } from '../protocol/url-parameters';
-import { BAD_REQUEST } from '../utils/common';
 import { AuthUser } from '../auth/auth.types';
+import { HttpError } from '../utils/http-error';
 import { wrapAsApiResponse } from '../utils/conversion';
 import { ExpressApplication, ExpressRequest, ExpressResponse } from '../utils/express.utils';
 
@@ -201,39 +201,43 @@ function validateUrlParameters(
     $query?: UrlTokensValidator;
   },
 ): void {
-  for (const key in req.params) {
-    const value = req.params[key];
+  try {
+    for (const key in req.params) {
+      const value = req.params[key];
 
-    // Run Global Validation if registered.
-    const globalValidator = URL_PARAMETER_INFO[key]?.validator;
-    if (globalValidator) {
-      callValueAssertion(value, globalValidator, BAD_REQUEST);
+      // Run Global Validation if registered.
+      const globalValidator = URL_PARAMETER_INFO[key]?.validator;
+      if (globalValidator) {
+        callValueAssertion(value, globalValidator, '400');
+      }
+
+      // Run Local Validation.
+      const validator = $path?.[key];
+      if (validator) {
+        callValueAssertion(value, validator, '400');
+      }
     }
 
-    // Run Local Validation.
-    const validator = $path?.[key];
-    if (validator) {
-      callValueAssertion(value, validator, BAD_REQUEST);
-    }
-  }
+    const parsedUrl = url.parse(req.url, true);
+    for (const key in parsedUrl.query) {
+      const value = parsedUrl.query[key];
 
-  const parsedUrl = url.parse(req.url, true);
-  for (const key in parsedUrl.query) {
-    const value = parsedUrl.query[key];
+      //  Global Validation if registered (also applies to query params if names match).
+      const globalValidator = URL_PARAMETER_INFO[key]?.validator;
+      if (globalValidator) {
+        // Query params can be string | string[] | undefined. Global validators usually expect string.
+        // We only validate if it's a single value or handle array in validator.
+        // For simplicity, we pass value as is (unknown) to assertion.
+        callValueAssertion(value, globalValidator as ValueAssertion<unknown>, '400');
+      }
 
-    //  Global Validation if registered (also applies to query params if names match).
-    const globalValidator = URL_PARAMETER_INFO[key]?.validator;
-    if (globalValidator) {
-      // Query params can be string | string[] | undefined. Global validators usually expect string.
-      // We only validate if it's a single value or handle array in validator.
-      // For simplicity, we pass value as is (unknown) to assertion.
-      callValueAssertion(value, globalValidator as ValueAssertion<unknown>, BAD_REQUEST);
+      const validator = $query?.[key];
+      if (validator) {
+        callValueAssertion(value, validator, '400');
+      }
     }
-
-    const validator = $query?.[key];
-    if (validator) {
-      callValueAssertion(value, validator, BAD_REQUEST);
-    }
+  } catch (error) {
+    throw new HttpError(400, (error as Error).message);
   }
 }
 
@@ -288,19 +292,24 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
   const validator = route.$body;
   const apiRequest = req.body;
 
-  // Handle validation based on whether validator is an object or function
-  if (typeof validator === 'function') {
-    // It's a ValueAssertion (function)
-    callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, `${BAD_REQUEST}: request body`);
-  } else {
-    // It's an ObjectAssertion - use validateObject
-    // We strictly assume it is an object because of the type definition (function | object)
-    const objectValidator = validator as ObjectAssertion<RequestBodyType>;
-    const isEmptyValidator = Object.keys(objectValidator).length === 0;
-    const error = validateObject(apiRequest, objectValidator, `${BAD_REQUEST}: request body`, {
-      failOnUnknownFields: !isEmptyValidator,
-    });
-    assertTruthy(!error, error);
+  try {
+    // Handle validation based on whether validator is an object or function
+    if (typeof validator === 'function') {
+      // It's a ValueAssertion (function)
+      callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, '400: request body');
+    } else {
+      // It's an ObjectAssertion - use validateObject
+      // We strictly assume it is an object because of the type definition (function | object)
+      const objectValidator = validator as ObjectAssertion<RequestBodyType>;
+      const isEmptyValidator = Object.keys(objectValidator).length === 0;
+      const error = validateObject(apiRequest, objectValidator, '400: request body', {
+        failOnUnknownFields: !isEmptyValidator,
+      });
+      assertTruthy(!error, error);
+    }
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(400, (error as Error).message);
   }
 
   const requestContext = newRequestContext<RequestBodyType>(apiRequest as RequestBodyType, req, res);

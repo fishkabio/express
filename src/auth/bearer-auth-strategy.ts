@@ -1,6 +1,7 @@
-import { assertTruthy } from '@fishka/assertions';
 import { ExpressRequest } from '../utils/express.utils';
 import { AuthStrategy, AuthUser } from './auth.types';
+import { HttpError } from '../utils/http-error';
+import { UNAUTHORIZED_STATUS } from '../utils/common';
 
 /**
  * Bearer authentication strategy (commonly used for JWTs).
@@ -51,7 +52,9 @@ export class BearerAuthStrategy<User extends AuthUser = AuthUser> implements Aut
    */
   async validateCredentials(token: string): Promise<User> {
     const user = await this.verifyFn(token);
-    assertTruthy(user, '401 UNAUTHORIZED: Invalid token');
+    if (!user) {
+      throw new HttpError(UNAUTHORIZED_STATUS, 'Invalid token');
+    }
     return user;
   }
 }

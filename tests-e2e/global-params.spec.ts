@@ -1,14 +1,14 @@
 import { assertString } from '@fishka/assertions';
-import { registerUrlParameter } from '../src';
+import { registerUrlParameter, HttpError } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
 describe('Global URL Parameters', () => {
   // Register a global parameter with validation
   registerUrlParameter('orgId', {
-    validator: (val) => {
+    validator: (val: unknown) => {
       assertString(val);
-      if (!val.startsWith('org-')) {
-        throw new Error('400: Organization ID must start with "org-"');
+      if (typeof val === 'string' && !val.startsWith('org-')) {
+        throw new HttpError(400, 'Organization ID must start with "org-"');
       }
     }
   });

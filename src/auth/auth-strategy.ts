@@ -1,6 +1,7 @@
-import { assertTruthy } from '@fishka/assertions';
 import { ExpressRequest } from '../utils/express.utils';
 import { AuthStrategy, AuthUser } from './auth.types';
+import { HttpError } from '../utils/http-error';
+import { UNAUTHORIZED_STATUS } from '../utils/common';
 
 /**
  * Basic authentication strategy using username/password validation.
@@ -57,7 +58,9 @@ export class BasicAuthStrategy<User extends AuthUser = AuthUser> implements Auth
    */
   async validateCredentials({ username, password }: { username: string; password: string }): Promise<User> {
     const user = await this.verifyFn(username, password);
-    assertTruthy(user, '401 UNAUTHORIZED: Invalid username or password');
+    if (!user) {
+      throw new HttpError(UNAUTHORIZED_STATUS, 'Invalid username or password');
+    }
     return user;
   }
 }

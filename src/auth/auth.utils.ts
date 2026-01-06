@@ -1,6 +1,7 @@
-import { assertTruthy } from '@fishka/assertions';
 import { EndpointMiddleware, RequestContext } from '../router/router';
 import { AuthStrategy, AuthUser } from './auth.types';
+import { HttpError } from '../utils/http-error';
+import { UNAUTHORIZED_STATUS } from '../utils/common';
 
 /**
  * Creates a middleware that enforces authentication using the provided strategy.
@@ -21,7 +22,9 @@ export function createAuthMiddleware<User extends AuthUser = AuthUser>(
 
     // If no credentials found (and strategy returned undefined), we must deny access here.
     // In a composite strategy scenario, we might want to try the next strategy, but this helper is for a single strategy enforcement.
-    assertTruthy(credentials, '401 UNAUTHORIZED: No credentials provided or invalid format');
+    if (!credentials) {
+      throw new HttpError(UNAUTHORIZED_STATUS, 'No credentials provided or invalid format');
+    }
 
     // Validate credentials and get authenticated user
     const user = await strategy.validateCredentials(credentials);
@@ -50,7 +53,9 @@ export function createAuthMiddleware<User extends AuthUser = AuthUser>(
  */
 export function getAuthUser<User extends AuthUser = AuthUser>(context: RequestContext): User {
   const user = context.authUser;
-  assertTruthy(user, '401 UNAUTHORIZED: User not found in state. Did you add auth middleware?');
+  if (!user) {
+    throw new HttpError(UNAUTHORIZED_STATUS, 'User not found in context. Did you add auth middleware?');
+  }
   return user as User;
 }
 

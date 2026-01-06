@@ -5,7 +5,7 @@ export type UrlTokensValidator = Record<string, ValueAssertion<string>>;
 export interface ApiResponse<ResponseEntity = unknown> {
   /** Result of the call. A single entity for non-paginated ${by-id} requests or an array for list queries. */
   result: ResponseEntity;
-  /** Unique ID of the request. Assigned to every API response. */
+  /** Unique ID of the request. Added to every API response. */
   requestId?: string;
   /**
    * Response status code. Same as HTTP response status.
@@ -14,6 +14,8 @@ export interface ApiResponse<ResponseEntity = unknown> {
   status?: number;
   /** Optional error message. */
   error?: string;
+  /** Optional structured error details. */
+  details?: Record<string, unknown>;
   /** Offset in the result set. Save as 'offset' query parameter. */
   offset?: number;
   /** Number of results requested. Same as 'limit' query parameter. */

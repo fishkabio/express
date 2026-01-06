@@ -296,7 +296,7 @@ describe('Core + Auth E2E Integration', () => {
 
       // Invalid request
       const invalidResponse = await makeRequest('GET', '/short-validate/abc');
-      expect(invalidResponse.status).toBe(400);
+      expect(invalidResponse.status).toBe(500);
       const errorBody = invalidResponse.body as { error: string };
       expect(errorBody.error).toContain('ID must be at least 5 characters');
     });

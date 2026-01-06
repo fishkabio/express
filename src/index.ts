@@ -7,6 +7,7 @@ export * from './middleware/catch-all.middleware';
 export * from './protocol/api.types';
 export * from './protocol/url-parameters';
 export * from './rate-limit/in-memory-rate-limiter';
+export * from './utils/http-error';
 export * from './rate-limit/rate-limit.types';
 export * from './router/route-table';
 export * from './router/router';

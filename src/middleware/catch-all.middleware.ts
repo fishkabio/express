@@ -1,15 +1,28 @@
 import { NextFunction } from 'express';
 import { ApiResponse } from '../protocol/api.types';
-import { BAD_REQUEST, INTERNAL_ERROR_STATUS, parseStatusCodeFromErrorMessageToken } from '../utils/common';
+import { INTERNAL_ERROR_STATUS, BAD_REQUEST_STATUS } from '../utils/common';
 import { wrapAsApiResponse } from '../utils/conversion';
 import { ExpressFunction, ExpressRequest, ExpressResponse } from '../utils/express.utils';
+import { HttpError } from '../utils/http-error';
 
 function buildApiResponse(error: unknown): ApiResponse & { status: number } {
+  if (error instanceof HttpError) {
+    return { 
+      ...wrapAsApiResponse(undefined), 
+      error: error.message, 
+      status: error.status,
+      details: error.details
+    };
+  }
+
   const errorMessage =
     typeof error === 'object' ? (error as Error).message : typeof error === 'string' ? error : undefined;
-  const status = parseStatusCodeFromErrorMessageToken(errorMessage);
-  const publicErrorMessage = status === INTERNAL_ERROR_STATUS || !errorMessage ? 'Internal error' : errorMessage;
-  return { ...wrapAsApiResponse(undefined), error: publicErrorMessage, status };
+  
+  return { 
+    ...wrapAsApiResponse(undefined), 
+    error: errorMessage && errorMessage.length > 0 ? errorMessage : 'Internal error', 
+    status: INTERNAL_ERROR_STATUS 
+  };
 }
 
 /** Catches all kinds of unprocessed exceptions thrown from a single route. */
@@ -48,7 +61,7 @@ export async function catchAllMiddleware(
   console.error('catchAllMiddleware:', (error as Error).message || typeof error);
   const apiResponse =
     error instanceof SyntaxError // JSON body parsing error.
-      ? buildApiResponse(`${BAD_REQUEST}: Failed to parse request: ${error.message}`)
+      ? buildApiResponse(`${BAD_REQUEST_STATUS}: Failed to parse request: ${error.message}`)
       : buildApiResponse(error);
   res.status(apiResponse.status);
   res.send(apiResponse);
