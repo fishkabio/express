@@ -33,6 +33,13 @@ export interface RequestContext<RequestBodyType = void> {
   };
 
   /**
+   * Query parameter access.
+   */
+  query: {
+    get(key: string): string | undefined;
+  };
+
+  /**
    * Generic context storage for middleware to attach data.
    * Allows middleware to pass information to handlers and other middleware.
    */
@@ -41,29 +48,29 @@ export interface RequestContext<RequestBodyType = void> {
 
 /** Descriptor for GET list routes. */
 export interface GetListEndpoint<ResponseResultElementType = unknown> {
-  pathValidator?: UrlTokensValidator;
-  queryValidator?: UrlTokensValidator;
-  run: (context: RequestContext) => Promise<ResponseOrValue<Array<ResponseResultElementType>>>;
+  $path?: UrlTokensValidator;
+  $query?: UrlTokensValidator;
+  run: (ctx: RequestContext) => Promise<ResponseOrValue<Array<ResponseResultElementType>>>;
   /** Optional middleware to execute before the handler */
   middlewares?: Array<EndpointMiddleware>;
 }
 
 /** Descriptor for GET routes. */
 export interface GetEndpoint<ResponseResultType = unknown> {
-  pathValidator?: UrlTokensValidator;
-  queryValidator?: UrlTokensValidator;
-  run: (context: RequestContext) => Promise<ResponseOrValue<ResponseResultType>>;
+  $path?: UrlTokensValidator;
+  $query?: UrlTokensValidator;
+  run: (ctx: RequestContext) => Promise<ResponseOrValue<ResponseResultType>>;
   /** Optional middleware to execute before the handler */
   middlewares?: Array<EndpointMiddleware>;
 }
 
 /** Descriptor for POST routes. */
 export interface PostEndpoint<RequestBodyType = unknown, ResponseResultType = unknown> {
-  pathValidator?: UrlTokensValidator;
-  queryValidator?: UrlTokensValidator;
+  $path?: UrlTokensValidator;
+  $query?: UrlTokensValidator;
   /** Request body validator. */
-  validator: RequestBodyType extends object ? ObjectAssertion<RequestBodyType> : Assertion<RequestBodyType>;
-  run: (context: RequestContext<RequestBodyType>) => Promise<ResponseOrValue<ResponseResultType>>;
+  $body: RequestBodyType extends object ? ObjectAssertion<RequestBodyType> : Assertion<RequestBodyType>;
+  run: (ctx: RequestContext<RequestBodyType>) => Promise<ResponseOrValue<ResponseResultType>>;
   /** Optional middleware to execute before the handler */
   middlewares?: Array<EndpointMiddleware>;
 }
@@ -82,8 +89,8 @@ export type PatchEndpoint<RequestBodyType = unknown, ResponseResultType = unknow
 
 /** Descriptor for DELETE routes. */
 export interface DeleteEndpoint {
-  pathValidator?: Record<string, ValueAssertion<string>>;
-  queryValidator?: Record<string, ValueAssertion<string>>;
+  $path?: Record<string, ValueAssertion<string>>;
+  $query?: Record<string, ValueAssertion<string>>;
   run: (context: RequestContext) => Promise<void>;
   /** Optional middleware to execute before the handler */
   middlewares?: Array<EndpointMiddleware>;

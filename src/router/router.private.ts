@@ -73,16 +73,16 @@ export function mount(app: ExpressApplication, { method, route, path }: RouteReg
 function validateUrlParameters(
   req: ExpressRequest,
   {
-    pathValidator,
-    queryValidator,
+    $path,
+    $query,
   }: {
-    pathValidator?: UrlTokensValidator;
-    queryValidator?: UrlTokensValidator;
+    $path?: UrlTokensValidator;
+    $query?: UrlTokensValidator;
   },
 ): void {
   for (const key in req.params) {
     const value = req.params[key];
-    const validator = pathValidator?.[key];
+    const validator = $path?.[key];
     if (validator) {
       callValueAssertion(value, validator, BAD_REQUEST);
     }
@@ -91,7 +91,7 @@ function validateUrlParameters(
   const parsedUrl = url.parse(req.url, true);
   for (const key in parsedUrl.query) {
     const value = parsedUrl.query[key];
-    const validator = queryValidator?.[key];
+    const validator = $query?.[key];
     if (validator) {
       callValueAssertion(value, validator, BAD_REQUEST);
     }
@@ -129,26 +129,21 @@ async function runPppHandler<RequestBodyType, ResponseResultType>(
   const apiRequest = requestContext.req.body as unknown;
 
   // Handle validation based on whether validator is an object or function
-  const validator = route.validator as Assertion<RequestBodyType>;
-  let error: string | undefined;
+  const validator = route.$body as Assertion<RequestBodyType>;
 
   // Check if validator is an object (ObjectAssertion) vs function (ValueAssertion)
   if (typeof validator === 'object' && validator !== null) {
     // It's an ObjectAssertion - use validateObject
     const isEmptyValidator = Object.keys(validator).length === 0;
-    error = validateObject(apiRequest, validator, `${BAD_REQUEST}: request body`, {
+    const error = validateObject(apiRequest, validator, `${BAD_REQUEST}: request body`, {
       failOnUnknownFields: !isEmptyValidator,
     });
+    assertTruthy(!error, error);
   } else {
     // It's a ValueAssertion (function) - use callValueAssertion
-    try {
-      callValueAssertion(apiRequest, validator, `${BAD_REQUEST}: request body`);
-    } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
-    }
+    callValueAssertion(apiRequest, validator, `${BAD_REQUEST}: request body`);
   }
 
-  assertTruthy(!error, error);
   requestContext.data.request = requestContext.req.body;
 
   return await executeWithMiddleware(
@@ -207,6 +202,10 @@ class RequestContextImpl<RequestBodyType> implements RequestContext<RequestBodyT
     };
   }
 
+  get query(): { get(key: string): string | undefined } {
+    return this.data.query;
+  }
+
   get context(): Map<string, unknown> {
     return this.data.context;
   }
@@ -228,6 +227,13 @@ function newRequestContext<RequestBodyType>(
         return value;
       },
       tryGet: (key: string): string | undefined => req.params[key],
+    },
+    query: {
+      get: (key: string): string | undefined => {
+        const parsedUrl = url.parse(req.url, true);
+        const value = parsedUrl.query[key];
+        return Array.isArray(value) ? value[0] : value;
+      },
     },
     context: new Map(),
   });

@@ -36,7 +36,7 @@ describe('Core + Auth E2E Integration', () => {
     it('should handle POST requests at top-level path', async () => {
       const routes = getTestRoutes();
       routes.post('items', {
-        validator: {
+        $body: {
           name: v => assertString(v, '400: bad'),
         },
         run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.request.name }),
@@ -50,7 +50,7 @@ describe('Core + Auth E2E Integration', () => {
     it('should handle PUT requests at top-level path', async () => {
       const routes = getTestRoutes();
       routes.put('items/:id', {
-        validator: { name: assertString },
+        $body: { name: assertString },
         run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.params.get('id') }),
       });
 
@@ -62,7 +62,7 @@ describe('Core + Auth E2E Integration', () => {
     it('should handle PATCH requests at top-level path', async () => {
       const routes = getTestRoutes();
       routes.patch('items/:id', {
-        validator: { name: assertString },
+        $body: { name: assertString },
         run: async (ctx: RequestContext<{ name?: string }>) => ({ value: ctx.request.name || 'none' }),
       });
 
@@ -92,7 +92,7 @@ describe('Core + Auth E2E Integration', () => {
     it('should return 400 for invalid request body', async () => {
       const routes = getTestRoutes();
       routes.post('validate-test', {
-        validator: {
+        $body: {
           name: v => assertString(v, '400: name required'),
         },
         run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.request.name }),
@@ -178,6 +178,127 @@ describe('Core + Auth E2E Integration', () => {
         headers: { Authorization: 'Bearer invalid' },
       });
       expect(response.status).toBe(401);
+    });
+  });
+
+  describe('Parameter validation', () => {
+    it('should validate path parameters with $path', async () => {
+      const routes = getTestRoutes();
+      routes.get<{ id: string }>('validate-path/:id', {
+        $path: {
+          id: v => {
+            assertString(v, '400: ID must be string');
+            if (v.length < 3) throw new Error('400: ID too short');
+          },
+        },
+        run: async ctx => ({ id: ctx.params.get('id') }),
+      });
+
+      // Valid request
+      const validResponse = await makeRequest('GET', '/validate-path/abc123');
+      expect(validResponse.status).toBe(200);
+      expect(getApiResult<{ id: string }>(validResponse).id).toBe('abc123');
+
+      // Invalid request - too short ID
+      const invalidResponse = await makeRequest('GET', '/validate-path/ab');
+      expect(invalidResponse.status).toBe(400);
+      const errorBody = invalidResponse.body as { error: string };
+      expect(errorBody.error).toContain('ID too short');
+    });
+
+    it('should validate query parameters with $query', async () => {
+      const routes = getTestRoutes();
+      routes.get<{ page: number }>('validate-query', {
+        $query: {
+          page: v => {
+            assertString(v, '400: page must be string');
+            const num = parseInt(v);
+            if (isNaN(num)) throw new Error('400: page must be a number');
+            if (num < 1) throw new Error('400: page must be >= 1');
+          },
+        },
+        run: async ctx => ({ page: parseInt(ctx.query.get('page') || '1') }),
+      });
+
+      // Valid request
+      const validResponse = await makeRequest('GET', '/validate-query?page=5');
+      expect(validResponse.status).toBe(200);
+      expect(getApiResult<{ page: number }>(validResponse).page).toBe(5);
+
+      // Invalid request - not a number
+      const invalidResponse1 = await makeRequest('GET', '/validate-query?page=abc');
+      expect(invalidResponse1.status).toBe(400);
+      const errorBody1 = invalidResponse1.body as { error: string };
+      expect(errorBody1.error).toContain('page must be a number');
+
+      // Invalid request - page < 1
+      const invalidResponse2 = await makeRequest('GET', '/validate-query?page=0');
+      expect(invalidResponse2.status).toBe(400);
+      const errorBody2 = invalidResponse2.body as { error: string };
+      expect(errorBody2.error).toContain('page must be >= 1');
+    });
+
+    it('should validate both path and query parameters together', async () => {
+      const routes = getTestRoutes();
+      routes.get<{ id: string; limit: number }>('validate-both/:id', {
+        $path: {
+          id: v => {
+            assertString(v, '400: ID must be string');
+            if (!/^[a-z0-9]+$/.test(v)) throw new Error('400: ID must be alphanumeric');
+          },
+        },
+        $query: {
+          limit: v => {
+            assertString(v, '400: limit must be string');
+            const num = parseInt(v);
+            if (isNaN(num)) throw new Error('400: limit must be a number');
+            if (num < 1 || num > 100) throw new Error('400: limit must be between 1 and 100');
+          },
+        },
+        run: async ctx => ({
+          id: ctx.params.get('id'),
+          limit: parseInt(ctx.query.get('limit') || '10'),
+        }),
+      });
+
+      // Valid request
+      const validResponse = await makeRequest('GET', '/validate-both/abc123?limit=50');
+      expect(validResponse.status).toBe(200);
+      const validResult = getApiResult<{ id: string; limit: number }>(validResponse);
+      expect(validResult.id).toBe('abc123');
+      expect(validResult.limit).toBe(50);
+
+      // Invalid path parameter
+      const invalidPathResponse = await makeRequest('GET', '/validate-both/ABC!?limit=50');
+      expect(invalidPathResponse.status).toBe(400);
+      const errorPathBody = invalidPathResponse.body as { error: string };
+      expect(errorPathBody.error).toContain('ID must be alphanumeric');
+
+      // Invalid query parameter
+      const invalidQueryResponse = await makeRequest('GET', '/validate-both/abc123?limit=150');
+      expect(invalidQueryResponse.status).toBe(400);
+      const errorQueryBody = invalidQueryResponse.body as { error: string };
+      expect(errorQueryBody.error).toContain('limit must be between 1 and 100');
+    });
+
+    it('should work with function shorthand and validation', async () => {
+      const routes = getTestRoutes();
+      routes.get<{ id: string }>('short-validate/:id', async ctx => {
+        const id = ctx.params.get('id');
+        if (id.length < 5) throw new Error('400: ID must be at least 5 characters');
+        return { id };
+      });
+
+      // Valid request
+      const validResponse = await makeRequest('GET', '/short-validate/abcde');
+      expect(validResponse.status).toBe(200);
+      expect(getApiResult<{ id: string }>(validResponse).id).toBe('abcde');
+
+      // Invalid request
+      const invalidResponse = await makeRequest('GET', '/short-validate/abc');
+      expect(invalidResponse.status).toBe(400);
+      const errorBody = invalidResponse.body as { error: string };
+      expect(errorBody.error).toContain('ID must be at least 5 characters');
     });
   });
 });

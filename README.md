@@ -37,7 +37,7 @@ routes.get<Array<{ id: string; name: string }>>('users', async () => ([
 
 // POST /users
 routes.post<{ name: string }, { id: string }>('users', {
-  validator: { name: v => assertString(v, '400: name required') },
+  $body: { name: v => assertString(v, '400: name required') },
   run: async ctx => ({ id: '1' }),
 });
 

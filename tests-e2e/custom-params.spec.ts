@@ -11,7 +11,7 @@ describe('Custom URL Parameters', () => {
     const routes = getTestRoutes();
     routes.get<{ sku: string }>('products/:sku', {
       // Runtime validation
-      pathValidator: {
+      $path: {
         sku: v => assertString(v, 'SKU must be string'),
       },
       run: async ctx => ({ sku: ctx.params.get('sku') }),
@@ -28,7 +28,7 @@ describe('Custom URL Parameters', () => {
     routes.get<{ id: string }>('shops/:shopId', {
       // Runtime validation (checking it parses as integer is up to validator logic usually,
       // but express params are always strings. We validate it looks like a number)
-      pathValidator: {
+      $path: {
         shopId: v => {
           assertString(v);
           if (isNaN(parseInt(v))) throw new Error('400: Not a number');
