@@ -1,0 +1,9 @@
+.claude
+.env
+.env.local
+.eslintcache
+.idea
+dist/
+node_modules
+node_modules/
+.plan
