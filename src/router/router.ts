@@ -1,9 +1,9 @@
 import { Assertion, ObjectAssertion, ValueAssertion } from '@fishka/assertions';
-import { DeleteDocEndpoint, GetDocEndpoint, PostDocEndpoint } from '../protocol/fishka-doc.types';
-import { ApiResponse, UrlTokensValidator } from '../protocol/fishka.types';
+import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
+import { DeleteDocEndpoint, GetDocEndpoint, PostDocEndpoint } from '../protocol/doc.types';
 import { ExpressRequest, ExpressResponse } from '../utils/express.utils';
 
-/** Common part of all Fishka route descriptors. */
+/** Common part of all route descriptors. */
 export interface EndpointCommon {
   path: string;
   version?: string;
@@ -19,7 +19,7 @@ export interface EndpointCommon {
   allowRestrictedAccess?: boolean;
 }
 
-/** Fishka allows handlers to return response in the raw form. */
+/** Express API allows handlers to return response in the raw form. */
 export type ResponseOrValue<ResponseEntity> = ApiResponse<ResponseEntity> | ResponseEntity;
 
 /**

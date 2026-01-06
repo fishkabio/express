@@ -2,14 +2,14 @@
   "name": "@fishka/express",
   "version": "0.0.1",
   "description": "Express.js extension with built-in OpenAPI 3.0 documentation, validation, and type safety",
-  "main": "dist/index.cjs.js",
-  "module": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.esm.js",
-      "require": "./dist/index.cjs.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
     }
   },
   "sideEffects": false,
@@ -21,13 +21,16 @@
     "url": "https://gitea.com/fishka/express.git"
   },
   "scripts": {
-    "build": "tsc --noEmit",
-    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build": "npm run build:esm && npm run build:cjs",
+    "clean": "rimraf ./dist",
     "format": "prettier --write \"./**/*.{ts,js,md,json}\"",
     "lint": "eslint .",
-    "webpack": "webpack",
     "test": "jest",
-    "release": "npm run lint && npm run test && npm run clean && npm run webpack && npm publish"
+    "typecheck": "tsc --noEmit",
+    "release": "npm run lint && npm run test && npm run build && npm publish"
   },
   "keywords": [
     "express",
@@ -62,11 +65,9 @@
     "jest": "^30.2.0",
     "prettier": "^3.7.4",
     "prettier-plugin-organize-imports": "^4.3.0",
+    "rimraf": "^6.1.2",
     "ts-jest": "^29.4.6",
-    "ts-loader": "^9.5.2",
-    "typescript": "^5.9.3",
-    "webpack": "^5.99.7",
-    "webpack-cli": "^5.1.4"
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=20.0.0",

@@ -1,5 +1,5 @@
 /**
- *  Type-safe subset of OpenAPI 3.0 schema used by Fishka to describe endpoints.
+ *  Type-safe subset of OpenAPI 3.0 schema used to describe endpoints.
  *  See https://swagger.io/docs/specification/basic-structure/.
  *  The goal of this package is to provide a TS-safe documentation where the presence
  *  of the documentation for every field is validated during compile time and reference types are always reused.

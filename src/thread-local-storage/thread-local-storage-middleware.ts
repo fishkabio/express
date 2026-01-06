@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { NextFunction } from 'express';
 import { ExpressFunction, ExpressRequest, ExpressResponse } from '../utils/express.utils';
-import { runWithFishkaTlsData } from './thread-local-storage.private';
+import { runWithRequestTlsData } from './thread-local-storage.private';
 
 /**
  * Configuration for thread-local storage middleware.
@@ -22,7 +22,7 @@ export interface TlsMiddlewareConfig {
  * @param config - Middleware configuration (optional)
  * @returns Express middleware function
  */
-export function createFishkaTlsMiddleware(config?: TlsMiddlewareConfig): ExpressFunction {
+export function createTlsMiddleware(config?: TlsMiddlewareConfig): ExpressFunction {
   return async (req: ExpressRequest, _res: ExpressResponse, next: NextFunction): Promise<void> => {
     const requestId = randomUUID();
 
@@ -31,7 +31,7 @@ export function createFishkaTlsMiddleware(config?: TlsMiddlewareConfig): Express
     const ipAddress = config?.extractIpAddress?.(req) || req.ip;
 
     // Run the next handler within the TLS context
-    await runWithFishkaTlsData(
+    await runWithRequestTlsData(
       {
         requestId,
         countryCode,
@@ -53,7 +53,7 @@ export function createFishkaTlsMiddleware(config?: TlsMiddlewareConfig): Express
 
 /**
  * Extracts the country code from CloudFront header.
- * Can be used in createFishkaTlsMiddleware config.
+ * Can be used in createTlsMiddleware config.
  */
 export function extractCountryCodeFromCloudFront(req: ExpressRequest): string | undefined {
   return req.header('CloudFront-Viewer-Country');

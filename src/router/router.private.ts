@@ -1,11 +1,12 @@
 import { Assertion, assertTruthy, callValueAssertion, validateObject } from '@fishka/assertions';
 import * as url from 'url';
-import { getFishkaConfig } from '../config/fishka-config';
+import { getExpressApiConfig } from '../config/config';
 import { catchRouteErrors } from '../middleware/catch-all.middleware';
-import { UrlTokensValidator } from '../protocol/fishka.types';
+import { UrlTokensValidator } from '../protocol/api.types';
 import { BAD_REQUEST } from '../utils/common.private';
-import { wrapAsFishkaResponse } from '../utils/conversion.private';
+import { wrapAsApiResponse } from '../utils/conversion.private';
 import { ExpressApplication, ExpressRequest, ExpressResponse } from '../utils/express.utils';
+import { registerApiEndpointDocs } from './route-docs-handler.private';
 import {
   DeleteEndpoint,
   EndpointMiddleware,
@@ -17,8 +18,7 @@ import {
   RequestContext,
   ResponseOrValue,
   RouteRegistrationInfo,
-} from './fishka-router';
-import { registerApiEndpointDocs } from './route-docs-handler.private';
+} from './router';
 
 /** Registers a GET route. */
 export const mountGet = (
@@ -46,19 +46,19 @@ export const mountDelete = (app: ExpressApplication, route: DeleteEndpoint): voi
 /** Mounts a route to the Express application. */
 export function mount(app: ExpressApplication, { method, route, isArrayResultType }: RouteRegistrationInfo): void {
   const pathPrefix = route.version ? `/v${route.version}/` : '/';
-  const config = getFishkaConfig();
+  const config = getExpressApiConfig();
 
   // Runtime check: require docs if configured
   if (config.requireDocs && !route.doc) {
     throw new Error(
-      `[Fishka] Documentation (doc) is required for ${method.toUpperCase()} ${pathPrefix}${route.path}. ` +
-        `Set configureFishka({ requireDocs: false }) to disable this check.`,
+      `[API] Documentation (doc) is required for ${method.toUpperCase()} ${pathPrefix}${route.path}. ` +
+        `Set configureExpressApi({ requireDocs: false }) to disable this check.`,
     );
   }
 
   // Warning for missing docs (only if not in strict mode)
   if (config.warnOnMissingDocs && !route.doc && !config.requireDocs) {
-    console.warn(`[Fishka] No documentation for ${method.toUpperCase()} ${pathPrefix}${route.path}`);
+    console.warn(`[API] No documentation for ${method.toUpperCase()} ${pathPrefix}${route.path}`);
   }
 
   // Register documentation only if provided
@@ -87,7 +87,7 @@ export function mount(app: ExpressApplication, { method, route, isArrayResultTyp
         );
       }
 
-      const response = wrapAsFishkaResponse(result);
+      const response = wrapAsApiResponse(result);
       response.status = response.status || 200;
       res.status(response.status);
       res.send(response);
@@ -152,7 +152,7 @@ async function runPppHandler<RequestBodyType, ResponseResultType>(
   requestContext: RequestContextImpl<RequestBodyType>,
   middlewares?: Array<EndpointMiddleware>,
 ): Promise<ResponseOrValue<ResponseResultType>> {
-  const fishkaRequest = requestContext.req.body as unknown;
+  const apiRequest = requestContext.req.body as unknown;
 
   // Handle validation based on whether validator is an object or function
   const validator = route.validator as Assertion<RequestBodyType>;
@@ -162,13 +162,13 @@ async function runPppHandler<RequestBodyType, ResponseResultType>(
   if (typeof validator === 'object' && validator !== null) {
     // It's an ObjectAssertion - use validateObject
     const isEmptyValidator = Object.keys(validator).length === 0;
-    error = validateObject(fishkaRequest, validator, `${BAD_REQUEST}: request body`, {
+    error = validateObject(apiRequest, validator, `${BAD_REQUEST}: request body`, {
       failOnUnknownFields: !isEmptyValidator,
     });
   } else {
     // It's a ValueAssertion (function) - use callValueAssertion
     try {
-      callValueAssertion(fishkaRequest, validator, `${BAD_REQUEST}: request body`);
+      callValueAssertion(apiRequest, validator, `${BAD_REQUEST}: request body`);
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
     }

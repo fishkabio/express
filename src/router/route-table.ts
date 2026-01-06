@@ -1,6 +1,6 @@
 import { ExpressApplication } from '../utils/express.utils';
-import { DeleteEndpoint, GetEndpoint, PatchEndpoint, PostEndpoint, PutEndpoint } from './fishka-router';
-import { mountDelete, mountGet, mountPatch, mountPost, mountPut } from './fishka-router.private';
+import { DeleteEndpoint, GetEndpoint, PatchEndpoint, PostEndpoint, PutEndpoint } from './router';
+import { mountDelete, mountGet, mountPatch, mountPost, mountPut } from './router.private';
 
 /**
  * Helper utility for organizing and mounting routes.
@@ -39,7 +39,7 @@ export class RouteTable {
 /**
  * Factory function to create a new route table.
  * @param app Express application instance
- * @returns FishkaRouteTable instance with fluent API
+ * @returns RouteTable instance with fluent API
  */
 export function createRouteTable(app: ExpressApplication): RouteTable {
   return new RouteTable(app);

@@ -1,4 +1,4 @@
-# Fishka Express
+# Express API
 
 Type-safe Express.js routing with automatic OpenAPI 3.0 documentation.
 
@@ -94,7 +94,7 @@ Using an unregistered parameter in a route path will throw an error.
 
 ### Optional Documentation
 
-By default, endpoint documentation is optional. You can configure Fishka Express to require documentation for all endpoints:
+By default, endpoint documentation is optional. You can configure Express API to require documentation for all endpoints:
 
 ```typescript
 import { configureExpressApi } from '@fishka/express';

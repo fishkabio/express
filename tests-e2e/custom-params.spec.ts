@@ -1,5 +1,5 @@
 import { assertString } from '@fishka/assertions';
-import { buildFishkaSchemaJsonResponse, registerUrlParameter } from '../src';
+import { buildSchemaJsonResponse, registerUrlParameter } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
 // Register custom parameters for this test suite
@@ -74,7 +74,7 @@ describe('Custom URL Parameters', () => {
     // The previous routes are still there on the app.
 
     // Let's check the schema.
-    const schema = JSON.parse(buildFishkaSchemaJsonResponse());
+    const schema = JSON.parse(buildSchemaJsonResponse());
     console.log('Available paths in schema:', Object.keys(schema.paths));
 
     // Check /products/:sku
@@ -99,6 +99,6 @@ describe('Custom URL Parameters', () => {
     // Using the /shops/:shopId route defined above
     const response = await makeRequest('GET', '/shops/not-a-number');
     expect(response.status).toBe(400);
-    // Fishka usually returns 400 for validation errors if catchRouteErrors is used (which it is)
+    // API usually returns 400 for validation errors if catchRouteErrors is used (which it is)
   });
 });

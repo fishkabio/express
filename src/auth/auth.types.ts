@@ -6,7 +6,7 @@ import { ExpressRequest } from '../utils/express.utils';
  *
  * Example:
  * ```ts
- * declare module 'fishka' {
+ * declare module '@fishka/express' {
  *   interface ApiAuthUser {
  *     id: string;
  *     roles: string[];
@@ -17,7 +17,7 @@ import { ExpressRequest } from '../utils/express.utils';
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ApiAuthUser {
   // This interface is intentionally empty to allow module augmentation
-  // Users should extend it via declare module 'fishka' { interface ApiAuthUser { ... } }
+  // Users should extend it via declare module '@fishka/express' { interface ApiAuthUser { ... } }
 }
 
 /**

@@ -1,4 +1,4 @@
-export interface GlobalConfig {
+export interface GlobalExpressApiConfig {
   /**
    * Require documentation for all endpoints.
    * When true, throws an error at mount time if endpoint is missing 'doc' field.
@@ -13,32 +13,32 @@ export interface GlobalConfig {
   warnOnMissingDocs?: boolean;
 }
 
-const defaultConfig: GlobalConfig = {
+const defaultConfig: GlobalExpressApiConfig = {
   requireDocs: false,
   warnOnMissingDocs: false,
 };
 
-let currentConfig: GlobalConfig = { ...defaultConfig };
+let currentConfig: GlobalExpressApiConfig = { ...defaultConfig };
 
 /**
- * Configure global Fishka settings.
+ * Configure global @fishka/express settings.
  * @param config Partial configuration to merge with current settings
  */
-export function configureExpressApi(config: Partial<GlobalConfig>): void {
+export function configureExpressApi(config: Partial<GlobalExpressApiConfig>): void {
   currentConfig = { ...currentConfig, ...config };
 }
 
 /**
- * Get current Fishka configuration.
+ * Get current Express API configuration.
  */
-export function getFishkaConfig(): GlobalConfig {
+export function getExpressApiConfig(): GlobalExpressApiConfig {
   return currentConfig;
 }
 
 /**
- * Reset Fishka configuration to defaults.
+ * Reset API configuration to defaults.
  * Useful for testing.
  */
-export function resetFishkaConfig(): void {
+export function resetExpressApiConfig(): void {
   currentConfig = { ...defaultConfig };
 }

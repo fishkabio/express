@@ -21,9 +21,9 @@ const asyncLocalStorage = new AsyncLocalStorage<ThreadLocalData>();
 
 /**
  * Gets all thread-local data for the current request context.
- * Returns undefined if called outside an async context managed by Fishka.
+ * Returns undefined if called outside an async context managed by API.
  */
-export function getFishkaLocalStorage(): ThreadLocalData | undefined {
+export function getRequestLocalStorage(): ThreadLocalData | undefined {
   return asyncLocalStorage.getStore();
 }
 
@@ -35,6 +35,6 @@ export function getFishkaLocalStorage(): ThreadLocalData | undefined {
  * @param callback - Function to execute within the context
  * @returns Result of the callback
  */
-export async function runWithFishkaTlsData<T>(data: ThreadLocalData, callback: () => Promise<T>): Promise<T> {
+export async function runWithRequestTlsData<T>(data: ThreadLocalData, callback: () => Promise<T>): Promise<T> {
   return asyncLocalStorage.run(data, callback);
 }

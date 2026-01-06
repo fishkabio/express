@@ -1,4 +1,4 @@
-import { DocValueFormat } from './fishka-doc.types';
+import { DocValueFormat } from './doc.types';
 import { URL_PARAMETER_INFO } from './urls-parameters.private';
 
 /** Globally identified URL (path or query) parameter info. */

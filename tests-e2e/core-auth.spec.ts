@@ -2,7 +2,7 @@ import { assertString } from '@fishka/assertions';
 import {
   BasicAuthStrategy,
   BearerAuthStrategy,
-  buildFishkaSchemaJsonResponse,
+  buildSchemaJsonResponse,
   createAuthMiddleware,
   getAuthUser,
   registerUrlParameter,
@@ -18,7 +18,7 @@ registerUrlParameter('id', {
   },
 });
 
-describe('Fishka Core + Auth E2E Integration', () => {
+describe('Core + Auth E2E Integration', () => {
   describe('Core routing (top-level paths, no version)', () => {
     it('should handle GET requests at top-level path', async () => {
       const routes = getTestRoutes();
@@ -243,7 +243,7 @@ describe('Fishka Core + Auth E2E Integration', () => {
         run: async () => ({ message: 'ok' }),
       });
 
-      const schema = JSON.parse(buildFishkaSchemaJsonResponse());
+      const schema = JSON.parse(buildSchemaJsonResponse());
       expect(schema.openapi).toBe('3.0.1');
       expect(schema.paths['/docs-top-level']).toBeDefined();
       expect(schema.paths['/docs-top-level'].get.summary).toBe('Top level endpoint');
@@ -262,7 +262,7 @@ describe('Fishka Core + Auth E2E Integration', () => {
         run: async () => ({ message: 'v1' }),
       });
 
-      const schema = JSON.parse(buildFishkaSchemaJsonResponse());
+      const schema = JSON.parse(buildSchemaJsonResponse());
       const v = schema.paths['/v1/docs-versioned'];
       expect(v).toBeDefined();
       expect(v.get.summary).toBe('Versioned v1 endpoint');
@@ -282,7 +282,7 @@ describe('Fishka Core + Auth E2E Integration', () => {
         run: async () => ({ id: '1' }),
       });
 
-      const schema = JSON.parse(buildFishkaSchemaJsonResponse());
+      const schema = JSON.parse(buildSchemaJsonResponse());
       const v = schema.paths['/docs-post'].post;
       expect(v.requestBody).toBeDefined();
       expect(v.responses['200']).toBeDefined();

@@ -1,13 +1,8 @@
 import { assertTruthy, truthy } from '@fishka/assertions';
 import { OpenAPIV3 } from 'openapi-types';
-import { getFishkaConfig } from '../config/fishka-config';
-import {
-  isFishkaDocArrayField,
-  isFishkaDocPrimitiveField,
-  isFishkaDocPrimitiveType,
-  isFishkaDocReferenceField,
-} from '../protocol/fishka-doc.private';
-import { DocField, DocPrimitiveValueType, ObjectDoc, RequestDoc, ResponseDoc } from '../protocol/fishka-doc.types';
+import { getExpressApiConfig } from '../config/config';
+import { isDocArrayField, isDocPrimitiveField, isDocPrimitiveType, isDocReferenceField } from '../protocol/doc.private';
+import { DocField, DocPrimitiveValueType, ObjectDoc, RequestDoc, ResponseDoc } from '../protocol/doc.types';
 import { assertUrlParameter, URL_PARAMETER_INFO } from '../protocol/urls-parameters.private';
 import { BAD_REQUEST_STATUS } from '../utils/common.private';
 
@@ -17,7 +12,7 @@ export function getComponentsSectionPath(ref: string): string {
 }
 
 /** Helper used to check that the same type is never registered twice with different descriptions. */
-const uniqueFishkaObjectDocMap = new Map<string, ObjectDoc>();
+const uniqueObjectDocMap = new Map<string, ObjectDoc>();
 
 /**
  * Extended OpenAPIV3 schema description.
@@ -50,20 +45,20 @@ function convertToOpenAPIV3Schema(request: ObjectDoc): Record<string, SchemaObje
 
   for (const [key, value] of Object.entries(request)) {
     if (key === '$name') continue; // Self-type name.
-    if (isFishkaDocArrayField(value)) {
+    if (isDocArrayField(value)) {
       let items: SchemaObjectV1;
       if (typeof value.itemType === 'object') {
         items = buildReferenceType(value.itemType.$name);
-      } else if (isFishkaDocPrimitiveType(value.itemType)) {
+      } else if (isDocPrimitiveType(value.itemType)) {
         items = buildPrimitiveType({ type: value.itemType, enum: value.enum });
       } else {
         console.error('Unsupported doc field type for array element: ', value);
         throw new Error(`Failed to convert doc field: ${key}`);
       }
       result[key] = { type: 'array', description: value.text, format: value.format, items };
-    } else if (isFishkaDocReferenceField(value)) {
+    } else if (isDocReferenceField(value)) {
       result[key] = buildReferenceType(value.$name);
-    } else if (isFishkaDocPrimitiveField(value)) {
+    } else if (isDocPrimitiveField(value)) {
       result[key] = buildPrimitiveType(value);
     } else {
       console.error('Unsupported doc field type: ', value);
@@ -74,7 +69,7 @@ function convertToOpenAPIV3Schema(request: ObjectDoc): Record<string, SchemaObje
 }
 
 /** Global object that has documentation about all currently registered endpoints and types. */
-export const fishkaOpenApiSchema: OpenAPIV3.Document = {
+export const openApiSchema: OpenAPIV3.Document = {
   openapi: '3.0.1',
   info: {
     title: 'API spec',
@@ -89,35 +84,35 @@ export const fishkaOpenApiSchema: OpenAPIV3.Document = {
 };
 
 /** Registers an object documentation schema. */
-export function registerFishkaObjectDoc<T extends object = object>(objectDoc: ObjectDoc<T>): ObjectDoc<T> {
-  const schemas = truthy(fishkaOpenApiSchema.components?.schemas as Record<string, OpenAPIV3.SchemaObject>);
-  const oldObjectDoc = uniqueFishkaObjectDocMap.get(objectDoc.$name);
+export function registerApiObjectDoc<T extends object = object>(objectDoc: ObjectDoc<T>): ObjectDoc<T> {
+  const schemas = truthy(openApiSchema.components?.schemas as Record<string, OpenAPIV3.SchemaObject>);
+  const oldObjectDoc = uniqueObjectDocMap.get(objectDoc.$name);
   assertTruthy(
     oldObjectDoc === undefined || oldObjectDoc === objectDoc,
     () => `Duplicate doc object: ${objectDoc.$name}`,
   );
   if (oldObjectDoc === undefined) {
     schemas[objectDoc.$name] = { properties: convertToOpenAPIV3Schema(objectDoc) };
-    uniqueFishkaObjectDocMap.set(objectDoc.$name, objectDoc);
+    uniqueObjectDocMap.set(objectDoc.$name, objectDoc);
   }
   return objectDoc;
 }
 
 /** Registers a request body documentation schema. */
 export function registerRequestDoc(request: RequestDoc): OpenAPIV3.ReferenceObject {
-  registerFishkaObjectDoc(request);
+  registerApiObjectDoc(request);
   return { $ref: getComponentsSectionPath(request.$name) };
 }
 
 /** Registers a response body documentation schema. */
 export function registerResponseDoc(response: ResponseDoc, isArrayResultType: boolean): OpenAPIV3.ResponsesObject {
-  registerFishkaObjectDoc(response);
+  registerApiObjectDoc(response);
   const responses: OpenAPIV3.ResponsesObject = {};
   responses['200'] = {
     description: 'Successful response',
     content: {
       'application/json': {
-        // See 'FishkaResponse' type: it contains 'result' field with a payload.
+        // See 'ApiResponse' type: it contains 'result' field with a payload.
         schema: {
           type: 'object',
           properties: {
@@ -165,7 +160,7 @@ export function generateParameterDocs(
       let info = URL_PARAMETER_INFO[urlParameter];
 
       if (!info) {
-        if (getFishkaConfig().requireDocs) {
+        if (getExpressApiConfig().requireDocs) {
           assertUrlParameter(urlParameter);
         }
         // Fallback for optional docs

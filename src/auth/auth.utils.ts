@@ -1,5 +1,5 @@
 import { assertTruthy } from '@fishka/assertions';
-import { EndpointMiddleware, RequestContext } from '../router/fishka-router';
+import { EndpointMiddleware, RequestContext } from '../router/router';
 import { ApiAuthUser, AuthStrategy } from './auth.types';
 
 /**
@@ -9,7 +9,7 @@ import { ApiAuthUser, AuthStrategy } from './auth.types';
  * @template TUser - Type of the authenticated user
  * @param strategy - Authentication strategy to use
  * @param onSuccess - Optional callback to process authenticated user
- * @returns Fishka middleware that enforces authentication
+ * @returns a middleware that enforces authentication
  */
 export function createAuthMiddleware<TUser extends ApiAuthUser = ApiAuthUser>(
   strategy: AuthStrategy<unknown, TUser>,
@@ -44,7 +44,7 @@ export function createAuthMiddleware<TUser extends ApiAuthUser = ApiAuthUser>(
  * Throws if the user is not present (i.e., authentication was not performed).
  *
  * @template TUser - Type of the authenticated user
- * @param context - Fishka request context
+ * @param context - Request context
  * @returns The authenticated user
  * @throws Error if user is not found in context
  */
@@ -59,7 +59,7 @@ export function getAuthUser<TUser extends ApiAuthUser = ApiAuthUser>(context: Re
  * Returns undefined if the user is not present.
  *
  * @template TUser - Type of the authenticated user
- * @param context - Fishka request context
+ * @param context - Request context
  * @returns The authenticated user, or undefined if not found
  */
 export function tryGetAuthUser<TUser extends ApiAuthUser = ApiAuthUser>(context: RequestContext): TUser | undefined {

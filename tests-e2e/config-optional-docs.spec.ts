@@ -1,5 +1,5 @@
 import { assertString } from '@fishka/assertions';
-import { RequestContext, configureExpressApi, registerUrlParameter, resetFishkaConfig } from '../src';
+import { configureExpressApi, registerUrlParameter, RequestContext, resetExpressApiConfig } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
 registerUrlParameter('id', {
@@ -10,10 +10,10 @@ registerUrlParameter('id', {
   },
 });
 
-describe('Fishka Configuration: Optional Documentation', () => {
+describe('API Configuration: Optional Documentation', () => {
   afterEach(() => {
     // Reset configuration after each test.
-    resetFishkaConfig();
+    resetExpressApiConfig();
   });
 
   describe('Default behavior (requireDocs: false)', () => {
@@ -111,7 +111,7 @@ describe('Fishka Configuration: Optional Documentation', () => {
           path: 'missing-doc',
           run: async () => ({ value: 'test' }),
         });
-      }).toThrow('[Fishka] Documentation (doc) is required for GET /missing-doc');
+      }).toThrow('[API] Documentation (doc) is required for GET /missing-doc');
     });
 
     it('should throw error for POST endpoint without doc', () => {
@@ -123,7 +123,7 @@ describe('Fishka Configuration: Optional Documentation', () => {
           validator: {},
           run: async (_ctx: RequestContext<Record<string, never>>) => ({ value: 'test' }),
         });
-      }).toThrow('[Fishka] Documentation (doc) is required for POST /missing-doc-post');
+      }).toThrow('[API] Documentation (doc) is required for POST /missing-doc-post');
     });
 
     it('should throw error for DELETE endpoint without doc', () => {
@@ -134,7 +134,7 @@ describe('Fishka Configuration: Optional Documentation', () => {
           path: 'missing-doc-delete',
           run: async () => {},
         });
-      }).toThrow('[Fishka] Documentation (doc) is required for DELETE /missing-doc-delete');
+      }).toThrow('[API] Documentation (doc) is required for DELETE /missing-doc-delete');
     });
 
     it('should allow endpoint with doc when requireDocs is true', async () => {
@@ -189,7 +189,7 @@ describe('Fishka Configuration: Optional Documentation', () => {
           path: 'strict-endpoint',
           run: async () => ({ value: 'test' }),
         });
-      }).toThrow('[Fishka] Documentation (doc) is required');
+      }).toThrow('[API] Documentation (doc) is required');
     });
 
     it('should allow switching from strict to permissive mode', async () => {
@@ -243,7 +243,7 @@ describe('Fishka Configuration: Optional Documentation', () => {
         run: async () => ({ value: 'test' }),
       });
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith('[Fishka] No documentation for GET /warn-console');
+      expect(consoleWarnSpy).toHaveBeenCalledWith('[API] No documentation for GET /warn-console');
     });
 
     it('should not warn when warnOnMissingDocs is false', () => {
@@ -274,7 +274,7 @@ describe('Fishka Configuration: Optional Documentation', () => {
           path: 'no-warn-strict',
           run: async () => ({ value: 'test' }),
         });
-      }).toThrow('[Fishka] Documentation (doc) is required');
+      }).toThrow('[API] Documentation (doc) is required');
 
       expect(consoleWarnSpy).not.toHaveBeenCalled();
     });

@@ -1,10 +1,10 @@
 import { truthy } from '@fishka/assertions';
 import { OpenAPIV3 } from 'openapi-types';
-import { DocEndpointCommon, RequestDoc, ResponseDoc } from '../protocol/fishka-doc.types';
-import { HttpMethod } from '../protocol/fishka.types';
+import { HttpMethod } from '../protocol/api.types';
+import { DocEndpointCommon, RequestDoc, ResponseDoc } from '../protocol/doc.types';
 import {
-  fishkaOpenApiSchema,
   generateParameterDocs,
+  openApiSchema,
   registerRequestDoc,
   registerResponseDoc,
 } from '../service/doc-registry.private';
@@ -21,7 +21,7 @@ export function registerApiEndpointDocs(
   doc: HandlerDoc,
   isArrayResultType: boolean,
 ): void {
-  const paths = truthy(fishkaOpenApiSchema.paths);
+  const paths = truthy(openApiSchema.paths);
   paths[path] = {
     ...(paths[path] || {}),
     [httpMethod]: <OpenAPIV3.PathsObject>{

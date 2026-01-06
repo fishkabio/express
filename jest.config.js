@@ -12,7 +12,17 @@ module.exports = {
         '^.+\\.(ts)$': [
           'ts-jest',
           {
-            tsconfig: 'tsconfig.json',
+            tsconfig: {
+              strict: true,
+              skipLibCheck: true,
+              target: 'ES2022',
+              lib: ['ESNext'],
+              module: 'commonjs',
+              esModuleInterop: true,
+              moduleResolution: 'node',
+              types: ['node', 'jest'],
+              outDir: '<rootDir>/dist-test',
+            },
           },
         ],
       },
@@ -25,7 +35,17 @@ module.exports = {
         '^.+\\.(ts)$': [
           'ts-jest',
           {
-            tsconfig: 'tsconfig.json',
+            tsconfig: {
+              strict: true,
+              skipLibCheck: true,
+              target: 'ES2022',
+              lib: ['ESNext'],
+              module: 'commonjs',
+              esModuleInterop: true,
+              moduleResolution: 'node',
+              types: ['node', 'jest'],
+              outDir: '<rootDir>/dist-test',
+            },
           },
         ],
       },

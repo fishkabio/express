@@ -5,7 +5,7 @@ export type UrlTokensValidator = Record<string, ValueAssertion<string>>;
 export interface ApiResponse<ResponseEntity = unknown> {
   /** Result of the call. A single entity for non-paginated ${by-id} requests or an array for list queries. */
   result: ResponseEntity;
-  /** Unique ID of the request. Assigned to every Fishka response. */
+  /** Unique ID of the request. Assigned to every API response. */
   requestId?: string;
   /**
    * Response status code. Same as HTTP response status.
@@ -20,10 +20,10 @@ export interface ApiResponse<ResponseEntity = unknown> {
   limit?: number;
 }
 
-/** Converts an API response value into a standardized FishkaResponse structure. */
+/** Converts an API response value into a standardized ApiResponse structure. */
 export function response<T = unknown>(result: T): ApiResponse<T> {
   return { result };
 }
 
-/** Http methods enum used in Fishka. */
+/** Http methods enum used in API. */
 export type HttpMethod = 'get' | 'post' | 'patch' | 'put' | 'delete';
