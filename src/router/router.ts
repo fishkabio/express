@@ -52,10 +52,10 @@ export interface RequestContext<Body = void> {
   };
 
   /**
-   * Generic context storage for middleware to attach data.
+   * Generic state storage for middleware to attach data.
    * Allows middleware to pass information to handlers and other middleware.
    */
-  context: Map<string, unknown>;
+  state: Map<string, unknown>;
 }
 
 /** Base interface with common endpoint properties. */
@@ -359,6 +359,6 @@ function newRequestContext<RequestBodyType>(
         return Array.isArray(value) ? value[0] : value;
       },
     },
-    context: new Map(),
+    state: new Map(),
   };
 }
