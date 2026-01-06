@@ -7,7 +7,7 @@ import { ExpressRequest } from '../utils/express.utils';
  * Example:
  * ```ts
  * declare module '@fishka/express' {
- *   interface ApiAuthUser {
+ *   interface AuthUser {
  *     id: string;
  *     roles: string[];
  *   }
@@ -15,19 +15,19 @@ import { ExpressRequest } from '../utils/express.utils';
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ApiAuthUser {
+export interface AuthUser {
   // This interface is intentionally empty to allow module augmentation
-  // Users should extend it via declare module '@fishka/express' { interface ApiAuthUser { ... } }
+  // Users should extend it via declare module '@fishka/express' { interface AuthUser { ... } }
 }
 
 /**
  * Generic authentication strategy interface.
  * Allows users to implement custom authentication logic.
  *
- * @template TCredentials - The type of credentials extracted from the request
- * @template TUser - The type of the authenticated user/entity
+ * @template Credentials - The type of credentials extracted from the request
+ * @template User - The type of the authenticated user/entity
  */
-export interface AuthStrategy<TCredentials = unknown, TUser extends ApiAuthUser = ApiAuthUser> {
+export interface AuthStrategy<Credentials = unknown, User extends AuthUser = AuthUser> {
   /**
    * Extracts credentials from the Express request.
    * This might parse Authorization headers, cookies, API keys, etc.
@@ -35,7 +35,7 @@ export interface AuthStrategy<TCredentials = unknown, TUser extends ApiAuthUser 
    * @param req - Express request object
    * @returns Extracted credentials, or undefined if not found/applicable
    */
-  extractCredentials(req: ExpressRequest): TCredentials | undefined;
+  extractCredentials(req: ExpressRequest): Credentials | undefined;
 
   /**
    * Validates the extracted credentials and returns the authenticated user/entity.
@@ -44,5 +44,5 @@ export interface AuthStrategy<TCredentials = unknown, TUser extends ApiAuthUser 
    * @returns Authenticated user/entity
    * @throws Error if credentials are invalid
    */
-  validateCredentials(credentials: TCredentials): Promise<TUser>;
+  validateCredentials(credentials: Credentials): Promise<User>;
 }

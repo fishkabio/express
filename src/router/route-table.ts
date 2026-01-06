@@ -32,17 +32,17 @@ export class RouteTable {
     return this;
   }
 
-  post<Req, Res>(path: string, endpoint: PostEndpoint<Req, Res>): this {
+  post<Body, Result>(path: string, endpoint: PostEndpoint<Body, Result>): this {
     mountPost(this.app, path, endpoint);
     return this;
   }
 
-  patch<Req, Res>(path: string, endpoint: PatchEndpoint<Req, Res>): this {
+  patch<Body, Result>(path: string, endpoint: PatchEndpoint<Body, Result>): this {
     mountPatch(this.app, path, endpoint);
     return this;
   }
 
-  put<Req, Res>(path: string, endpoint: PutEndpoint<Req, Res>): this {
+  put<Body, Result>(path: string, endpoint: PutEndpoint<Body, Result>): this {
     mountPut(this.app, path, endpoint);
     return this;
   }

@@ -1,6 +1,6 @@
 import { assertTruthy } from '@fishka/assertions';
 import { ExpressRequest } from '../utils/express.utils';
-import { ApiAuthUser, AuthStrategy } from './auth.types';
+import { AuthStrategy, AuthUser } from './auth.types';
 
 /**
  * Bearer authentication strategy (commonly used for JWTs).
@@ -22,11 +22,11 @@ import { ApiAuthUser, AuthStrategy } from './auth.types';
  * });
  * ```
  */
-export class BearerAuthStrategy<TUser extends ApiAuthUser = ApiAuthUser> implements AuthStrategy<string, TUser> {
+export class BearerAuthStrategy<User extends AuthUser = AuthUser> implements AuthStrategy<string, User> {
   /**
    * @param verifyFn Function to validate the token. Returns the user if valid, or null if invalid.
    */
-  constructor(private readonly verifyFn: (token: string) => Promise<TUser | null>) {}
+  constructor(private readonly verifyFn: (token: string) => Promise<User | null>) {}
 
   /**
    * Extracts the Bearer token from the Authorization header.
@@ -49,7 +49,7 @@ export class BearerAuthStrategy<TUser extends ApiAuthUser = ApiAuthUser> impleme
   /**
    * Validates the extracted token using the provided verification function.
    */
-  async validateCredentials(token: string): Promise<TUser> {
+  async validateCredentials(token: string): Promise<User> {
     const user = await this.verifyFn(token);
     assertTruthy(user, '401 UNAUTHORIZED: Invalid token');
     return user;

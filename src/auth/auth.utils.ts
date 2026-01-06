@@ -1,19 +1,19 @@
 import { assertTruthy } from '@fishka/assertions';
 import { EndpointMiddleware, RequestContext } from '../router/router';
-import { ApiAuthUser, AuthStrategy } from './auth.types';
+import { AuthStrategy, AuthUser } from './auth.types';
 
 /**
  * Creates a middleware that enforces authentication using the provided strategy.
  * The authenticated user is stored in the context under the 'authUser' key.
  *
- * @template TUser - Type of the authenticated user
+ * @template User - Type of the authenticated user
  * @param strategy - Authentication strategy to use
  * @param onSuccess - Optional callback to process authenticated user
  * @returns a middleware that enforces authentication
  */
-export function createAuthMiddleware<TUser extends ApiAuthUser = ApiAuthUser>(
-  strategy: AuthStrategy<unknown, TUser>,
-  onSuccess?: (user: TUser, context: RequestContext) => void,
+export function createAuthMiddleware<User extends AuthUser = AuthUser>(
+  strategy: AuthStrategy<unknown, User>,
+  onSuccess?: (user: User, context: RequestContext) => void,
 ): EndpointMiddleware {
   return async (handler, context) => {
     // Extract credentials from request
@@ -43,25 +43,25 @@ export function createAuthMiddleware<TUser extends ApiAuthUser = ApiAuthUser>(
  * Extracts the authenticated user from the request context.
  * Throws if the user is not present (i.e., authentication was not performed).
  *
- * @template TUser - Type of the authenticated user
+ * @template User - Type of the authenticated user
  * @param context - Request context
  * @returns The authenticated user
  * @throws Error if user is not found in context
  */
-export function getAuthUser<TUser extends ApiAuthUser = ApiAuthUser>(context: RequestContext): TUser {
+export function getAuthUser<User extends AuthUser = AuthUser>(context: RequestContext): User {
   const user = context.context.get('authUser');
   assertTruthy(user, '401 UNAUTHORIZED: User not found in context. Did you add auth middleware?');
-  return user as TUser;
+  return user as User;
 }
 
 /**
  * Safely extracts the authenticated user from the request context.
  * Returns undefined if the user is not present.
  *
- * @template TUser - Type of the authenticated user
+ * @template User - Type of the authenticated user
  * @param context - Request context
  * @returns The authenticated user, or undefined if not found
  */
-export function tryGetAuthUser<TUser extends ApiAuthUser = ApiAuthUser>(context: RequestContext): TUser | undefined {
-  return context.context.get('authUser') as TUser | undefined;
+export function tryGetAuthUser<User extends AuthUser = AuthUser>(context: RequestContext): User | undefined {
+  return context.context.get('authUser') as User | undefined;
 }

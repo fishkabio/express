@@ -97,42 +97,45 @@ export type RouteRegistrationInfo = (
 // ============================================================================
 
 /**
- * @Internal
  * Registers a GET route.
  */
 export const mountGet = (app: ExpressApplication, path: string, endpoint: GetEndpoint | GetListEndpoint): void =>
   mount(app, { method: 'get', route: endpoint, path });
 
 /**
- * @Internal
  * Registers a POST route.
  */
-export const mountPost = <Req, Res>(app: ExpressApplication, path: string, endpoint: PostEndpoint<Req, Res>): void =>
-  mount(app, { method: 'post', route: endpoint as PostEndpoint<unknown, unknown>, path });
+export const mountPost = <Body, Result>(
+  app: ExpressApplication,
+  path: string,
+  endpoint: PostEndpoint<Body, Result>,
+): void => mount(app, { method: 'post', route: endpoint as PostEndpoint, path });
 
 /**
- * @Internal
  * Registers a PATCH route.
  */
-export const mountPatch = <Req, Res>(app: ExpressApplication, path: string, endpoint: PatchEndpoint<Req, Res>): void =>
-  mount(app, { method: 'patch', route: endpoint as PatchEndpoint<unknown, unknown>, path });
+export const mountPatch = <Body, Result>(
+  app: ExpressApplication,
+  path: string,
+  endpoint: PatchEndpoint<Body, Result>,
+): void => mount(app, { method: 'patch', route: endpoint as PatchEndpoint, path });
 
 /**
- * @Internal
  * Registers a PUT route.
  */
-export const mountPut = <Req, Res>(app: ExpressApplication, path: string, endpoint: PutEndpoint<Req, Res>): void =>
-  mount(app, { method: 'put', route: endpoint as PutEndpoint<unknown, unknown>, path });
+export const mountPut = <Body, Result>(
+  app: ExpressApplication,
+  path: string,
+  endpoint: PutEndpoint<Body, Result>,
+): void => mount(app, { method: 'put', route: endpoint as PutEndpoint, path });
 
 /**
- * @Internal
  * Registers a DELETE route.
  */
 export const mountDelete = (app: ExpressApplication, path: string, endpoint: DeleteEndpoint): void =>
   mount(app, { method: 'delete', route: endpoint, path });
 
 /**
- * @Internal
  * Mounts a route with the given method, endpoint, and path.
  */
 export function mount(app: ExpressApplication, { method, route, path }: RouteRegistrationInfo): void {
@@ -156,13 +159,13 @@ function createRouteHandler(
       case 'post':
       case 'put':
       case 'patch':
-        result = await runPppHandler(endpoint as PostEndpoint<unknown, unknown>, req, res);
+        result = await executeBodyEndpoint(endpoint as PostEndpoint, req, res);
         break;
       case 'delete':
-        result = await runDeleteHandler(endpoint as DeleteEndpoint, req, res);
+        result = await executeDeleteEndpoint(endpoint as DeleteEndpoint, req, res);
         break;
       case 'get':
-        result = await runGetHandler(endpoint as GetEndpoint<unknown>, req, res);
+        result = await executeGetEndpoint(endpoint as GetEndpoint, req, res);
         break;
     }
     const response = wrapAsApiResponse(result);
@@ -208,7 +211,7 @@ function validateUrlParameters(
  * @Internal
  * Runs GET handler with optional middleware.
  */
-async function runGetHandler<ResponseResultType>(
+async function executeGetEndpoint<ResponseResultType>(
   route: GetEndpoint<ResponseResultType>,
   req: ExpressRequest,
   res: ExpressResponse,
@@ -226,7 +229,7 @@ async function runGetHandler<ResponseResultType>(
  * @Internal
  * Runs DELETE handler with optional middleware.
  */
-async function runDeleteHandler(
+async function executeDeleteEndpoint(
   route: DeleteEndpoint,
   req: ExpressRequest,
   res: ExpressResponse,
@@ -241,14 +244,14 @@ async function runDeleteHandler(
   return undefined;
 }
 
-type PppHandler<Req, Res> = PostEndpoint<Req, Res> | PutEndpoint<Req, Res> | PatchEndpoint<Req, Res>;
+type BodyHandler<Req, Res> = PostEndpoint<Req, Res> | PutEndpoint<Req, Res> | PatchEndpoint<Req, Res>;
 
 /**
  * @Internal
  * Runs POST/PUT/PATCH handler with optional middleware.
  */
-async function runPppHandler<RequestBodyType, ResponseResultType>(
-  route: PppHandler<RequestBodyType, ResponseResultType>,
+async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
+  route: BodyHandler<RequestBodyType, ResponseResultType>,
   req: ExpressRequest,
   res: ExpressResponse,
 ): Promise<ResponseOrValue<ResponseResultType>> {
@@ -292,18 +295,18 @@ async function runPppHandler<RequestBodyType, ResponseResultType>(
  * @Internal
  * Executes handler with middleware chain.
  */
-async function executeWithMiddleware<Context, TResult>(
-  run: () => Promise<ResponseOrValue<TResult>>,
+async function executeWithMiddleware<Context, Result>(
+  run: () => Promise<ResponseOrValue<Result>>,
   middlewares: Array<EndpointMiddleware<Context>>,
   context: Context,
-): Promise<ResponseOrValue<TResult>> {
-  const current = async (index: number): Promise<ResponseOrValue<TResult>> => {
+): Promise<ResponseOrValue<Result>> {
+  const current = async (index: number): Promise<ResponseOrValue<Result>> => {
     if (index >= middlewares.length) {
       const result = await run();
       return wrapAsApiResponse(result);
     }
     const middleware = middlewares[index];
-    return (await middleware(() => current(index + 1), context)) as ResponseOrValue<TResult>;
+    return (await middleware(() => current(index + 1), context)) as ResponseOrValue<Result>;
   };
   return await current(0);
 }
@@ -345,12 +348,12 @@ class RequestContextImpl<RequestBodyType> implements RequestContext<RequestBodyT
  * Creates a new RequestContext instance.
  */
 function newRequestContext<RequestBodyType>(
-  openapiRequest: RequestBodyType,
+  requestBody: RequestBodyType,
   req: ExpressRequest,
   res: ExpressResponse,
 ): RequestContextImpl<RequestBodyType> {
   return new RequestContextImpl<RequestBodyType>({
-    body: openapiRequest,
+    body: requestBody,
     req,
     res,
     params: {

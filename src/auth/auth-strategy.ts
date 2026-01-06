@@ -1,6 +1,6 @@
 import { assertTruthy } from '@fishka/assertions';
 import { ExpressRequest } from '../utils/express.utils';
-import { ApiAuthUser, AuthStrategy } from './auth.types';
+import { AuthStrategy, AuthUser } from './auth.types';
 
 /**
  * Basic authentication strategy using username/password validation.
@@ -19,11 +19,11 @@ import { ApiAuthUser, AuthStrategy } from './auth.types';
  * );
  * ```
  */
-export class BasicAuthStrategy<TUser extends ApiAuthUser = ApiAuthUser> implements AuthStrategy<
+export class BasicAuthStrategy<User extends AuthUser = AuthUser> implements AuthStrategy<
   { username: string; password: string },
-  TUser
+  User
 > {
-  constructor(private readonly verifyFn: (username: string, password: string) => Promise<TUser | null>) {}
+  constructor(private readonly verifyFn: (username: string, password: string) => Promise<User | null>) {}
 
   /**
    * Extracts username and password from Basic auth header.
@@ -55,7 +55,7 @@ export class BasicAuthStrategy<TUser extends ApiAuthUser = ApiAuthUser> implemen
   /**
    * Validates the extracted credentials using the provided validation function.
    */
-  async validateCredentials({ username, password }: { username: string; password: string }): Promise<TUser> {
+  async validateCredentials({ username, password }: { username: string; password: string }): Promise<User> {
     const user = await this.verifyFn(username, password);
     assertTruthy(user, '401 UNAUTHORIZED: Invalid username or password');
     return user;

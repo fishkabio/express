@@ -5,7 +5,7 @@ export * from './auth/bearer-auth-strategy';
 export * from './config/config';
 export * from './middleware/catch-all.middleware';
 export * from './protocol/api.types';
-export * from './protocol/urls-parameters';
+export * from './protocol/url-parameters';
 export * from './rate-limit/in-memory-rate-limiter';
 export * from './rate-limit/rate-limit.types';
 export * from './router/route-table';
