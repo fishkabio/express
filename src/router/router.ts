@@ -302,7 +302,7 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
   const requestContext = newRequestContext<RequestBodyType>(apiRequest as RequestBodyType, req, res);
   validateUrlParameters(req, { $path: route.$path, $query: route.$query });
 
-  requestContext.data.body = req.body;
+  requestContext.body = req.body;
 
   return await executeWithMiddleware<RequestContext<RequestBodyType>, ResponseResultType>(
     () => route.run(requestContext),
@@ -333,46 +333,14 @@ async function executeWithMiddleware<Context, Result>(
 
 /**
  * @Internal
- * Proxies & adds extra safety checks on access to RequestContext.
- */
-class RequestContextImpl<RequestBodyType> implements RequestContext<RequestBodyType> {
-  constructor(readonly data: RequestContext<RequestBodyType>) {}
-
-  get body(): RequestBodyType {
-    return this.data.body;
-  }
-
-  get req(): ExpressRequest {
-    return this.data.req;
-  }
-
-  get res(): ExpressResponse {
-    return this.data.res;
-  }
-
-  get params(): { get(key: string): string; tryGet(key: string): string | undefined } {
-    return this.data.params;
-  }
-
-  get query(): { get(key: string): string | undefined } {
-    return this.data.query;
-  }
-
-  get context(): Map<string, unknown> {
-    return this.data.context;
-  }
-}
-
-/**
- * @Internal
  * Creates a new RequestContext instance.
  */
 function newRequestContext<RequestBodyType>(
   requestBody: RequestBodyType,
   req: ExpressRequest,
   res: ExpressResponse,
-): RequestContextImpl<RequestBodyType> {
-  return new RequestContextImpl<RequestBodyType>({
+): RequestContext<RequestBodyType> {
+  return {
     body: requestBody,
     req,
     res,
@@ -392,5 +360,5 @@ function newRequestContext<RequestBodyType>(
       },
     },
     context: new Map(),
-  });
+  };
 }
