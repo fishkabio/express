@@ -12,13 +12,10 @@ npm install @fishka/express
 
 ```typescript
 import express from 'express';
-import { createRouteTable, registerUrlParameter } from '@fishka/express';
+import { createRouteTable } from '@fishka/express';
 
 const app = express();
 app.use(express.json());
-
-// Register global URL parameters
-registerUrlParameter('id', {});
 
 const routes = createRouteTable(app);
 
@@ -50,18 +47,22 @@ app.listen(3000);
 
 ## URL Parameters
 
-All URL parameters (e.g., `:id`, `:userId`) must be registered globally before use.
+Global validation can be enforced for specific URL parameters (e.g., `:id`, `:orgId`) across all routes.
 
 ```typescript
 import { registerUrlParameter } from '@fishka/express';
+import { assertString } from '@fishka/assertions';
 
-// Register parameters
-registerUrlParameter('slug', {});
-registerUrlParameter('organizationId', {});
-registerUrlParameter('limit', {});
+// Register parameters with optional validation
+registerUrlParameter('orgId', {
+  validator: (val) => {
+    assertString(val);
+    if (!val.startsWith('org-')) throw new Error('400: Invalid Organization ID');
+  }
+});
+
+// Now /orgs/:orgId will automatically validate that orgId starts with 'org-'
 ```
-
-Using an unregistered parameter in a route path will throw an error.
 
 ## Authentication
 

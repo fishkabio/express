@@ -9,6 +9,7 @@ import {
 import * as url from 'url';
 import { catchRouteErrors } from '../middleware/catch-all.middleware';
 import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
+import { URL_PARAMETER_INFO } from '../protocol/url-parameters';
 import { BAD_REQUEST } from '../utils/common';
 import { wrapAsApiResponse } from '../utils/conversion';
 import { ExpressApplication, ExpressRequest, ExpressResponse } from '../utils/express.utils';
@@ -198,6 +199,14 @@ function validateUrlParameters(
 ): void {
   for (const key in req.params) {
     const value = req.params[key];
+
+    // Run Global Validation if registered.
+    const globalValidator = URL_PARAMETER_INFO[key]?.validator;
+    if (globalValidator) {
+      callValueAssertion(value, globalValidator, BAD_REQUEST);
+    }
+
+    // Run Local Validation.
     const validator = $path?.[key];
     if (validator) {
       callValueAssertion(value, validator, BAD_REQUEST);
@@ -207,6 +216,16 @@ function validateUrlParameters(
   const parsedUrl = url.parse(req.url, true);
   for (const key in parsedUrl.query) {
     const value = parsedUrl.query[key];
+
+    //  Global Validation if registered (also applies to query params if names match).
+    const globalValidator = URL_PARAMETER_INFO[key]?.validator;
+    if (globalValidator) {
+      // Query params can be string | string[] | undefined. Global validators usually expect string.
+      // We only validate if it's a single value or handle array in validator.
+      // For simplicity, we pass value as is (unknown) to assertion.
+      callValueAssertion(value, globalValidator as ValueAssertion<unknown>, BAD_REQUEST);
+    }
+
     const validator = $query?.[key];
     if (validator) {
       callValueAssertion(value, validator, BAD_REQUEST);
@@ -225,7 +244,7 @@ async function executeGetEndpoint<ResponseResultType>(
 ): Promise<ResponseOrValue<ResponseResultType>> {
   const requestContext = newRequestContext<void>(undefined, req, res);
   validateUrlParameters(req, { $path: route.$path, $query: route.$query });
-  return await executeWithMiddleware<RequestContext<void>, ResponseResultType>(
+  return await executeWithMiddleware<RequestContext, ResponseResultType>(
     () => route.run(requestContext),
     route.middlewares || [],
     requestContext,
@@ -243,7 +262,7 @@ async function executeDeleteEndpoint(
 ): Promise<ResponseOrValue<void>> {
   const requestContext = newRequestContext<void>(undefined, req, res);
   validateUrlParameters(req, { $path: route.$path, $query: route.$query });
-  await executeWithMiddleware<RequestContext<void>, void>(
+  await executeWithMiddleware<RequestContext, void>(
     () => route.run(requestContext),
     route.middlewares || [],
     requestContext,

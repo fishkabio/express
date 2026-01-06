@@ -1,10 +1,15 @@
-import { assertString, assertTruthy } from '@fishka/assertions';
+import { assertString, assertTruthy, ValueAssertion } from '@fishka/assertions';
 
 /** Globally identified URL (path or query) parameter info. */
-export type UrlParameterInfo = Record<string, never>;
+export interface UrlParameterInfo {
+  /** Optional global validator for this parameter. */
+  validator?: ValueAssertion<string>;
+  /** Description for documentation. */
+  description?: string;
+}
 
 /**
- * Default documentation for URL parameters. Can be overridden with 'parameterDescriptionOverride'.
+ * Default documentation and validation for URL parameters.
  * @Internal
  */
 export const URL_PARAMETER_INFO: Record<string, UrlParameterInfo> = {};
