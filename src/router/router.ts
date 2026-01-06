@@ -1,4 +1,11 @@
-import { Assertion, assertTruthy, callValueAssertion, ObjectAssertion, validateObject } from '@fishka/assertions';
+import {
+  Assertion,
+  assertTruthy,
+  callValueAssertion,
+  ObjectAssertion,
+  validateObject,
+  ValueAssertion,
+} from '@fishka/assertions';
 import * as url from 'url';
 import { catchRouteErrors } from '../middleware/catch-all.middleware';
 import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
@@ -259,24 +266,18 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
   const apiRequest = req.body;
 
   // Handle validation based on whether validator is an object or function
-  // Check if validator is an object (ObjectAssertion) vs function (ValueAssertion)
-  // Use type assertions to handle the conditional type
-  if (typeof validator === 'object' && validator !== null) {
-    // It's an ObjectAssertion - use validateObject
-    const isEmptyValidator = Object.keys(validator).length === 0;
-    const error = validateObject(
-      apiRequest,
-      validator as ObjectAssertion<RequestBodyType>,
-      `${BAD_REQUEST}: request body`,
-      {
-        failOnUnknownFields: !isEmptyValidator,
-      },
-    );
-    assertTruthy(!error, error);
+  if (typeof validator === 'function') {
+    // It's a ValueAssertion (function)
+    callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, `${BAD_REQUEST}: request body`);
   } else {
-    // It's a ValueAssertion (function) - use callValueAssertion
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callValueAssertion(apiRequest, validator as any, `${BAD_REQUEST}: request body`);
+    // It's an ObjectAssertion - use validateObject
+    // We strictly assume it is an object because of the type definition (function | object)
+    const objectValidator = validator as ObjectAssertion<RequestBodyType>;
+    const isEmptyValidator = Object.keys(objectValidator).length === 0;
+    const error = validateObject(apiRequest, objectValidator, `${BAD_REQUEST}: request body`, {
+      failOnUnknownFields: !isEmptyValidator,
+    });
+    assertTruthy(!error, error);
   }
 
   const requestContext = newRequestContext<RequestBodyType>(apiRequest as RequestBodyType, req, res);
