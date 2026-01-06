@@ -29,11 +29,10 @@ routes.get<{ id: string; name: string }>('users/:id', async ctx => ({
 }));
 
 // GET /users - using full endpoint object
-routes.get<Array<{ id: string; name: string }>>('users', async () => ([
-    { id: '1', name: 'John' },
-    { id: '2', name: 'Jane' },
-  ]),
-);
+routes.get<Array<{ id: string; name: string }>>('users', async () => [
+  { id: '1', name: 'John' },
+  { id: '2', name: 'Jane' },
+]);
 
 // POST /users
 routes.post<{ name: string }, { id: string }>('users', {

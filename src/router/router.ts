@@ -1,4 +1,4 @@
-import { Assertion, ObjectAssertion, ValueAssertion } from '@fishka/assertions';
+import { Assertion, ObjectAssertion } from '@fishka/assertions';
 import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
 import { ExpressRequest, ExpressResponse } from '../utils/express.utils';
 
@@ -15,12 +15,12 @@ export type EndpointMiddleware<Context = RequestContext> = (
 ) => Promise<unknown>;
 
 /** Generic request context passed to all handlers. Database-agnostic and extensible. */
-export interface RequestContext<RequestBodyType = void> {
-  /** Parsed and validated request body (for POST/PATCH/PUT handlers) */
-  request: RequestBodyType;
-  /** Express Request object */
+export interface RequestContext<Body = void> {
+  /** Parsed and validated request body (for POST/PATCH/PUT handlers). */
+  body: Body;
+  /** Express Request object. */
   req: ExpressRequest;
-  /** Express Response object */
+  /** Express Response object. */
   res: ExpressResponse;
 
   /**
@@ -46,55 +46,38 @@ export interface RequestContext<RequestBodyType = void> {
   context: Map<string, unknown>;
 }
 
-/** Descriptor for GET list routes. */
-export interface GetListEndpoint<ResponseResultElementType = unknown> {
+/** Base interface with common endpoint properties. */
+export interface EndpointBase<Context = RequestContext, Result = unknown> {
+  /** Path parameter validator. */
   $path?: UrlTokensValidator;
+  /** Query parameter validator. */
   $query?: UrlTokensValidator;
-  run: (ctx: RequestContext) => Promise<ResponseOrValue<Array<ResponseResultElementType>>>;
-  /** Optional middleware to execute before the handler */
+  /** Optional middleware to execute before the handler. */
   middlewares?: Array<EndpointMiddleware>;
+  /** Handler function. */
+  run: (ctx: Context) => Promise<ResponseOrValue<Result>>;
 }
+
+/** Descriptor for GET list routes. */
+export type GetListEndpoint<ResultElementType = unknown> = EndpointBase<RequestContext, Array<ResultElementType>>;
 
 /** Descriptor for GET routes. */
-export interface GetEndpoint<ResponseResultType = unknown> {
-  $path?: UrlTokensValidator;
-  $query?: UrlTokensValidator;
-  run: (ctx: RequestContext) => Promise<ResponseOrValue<ResponseResultType>>;
-  /** Optional middleware to execute before the handler */
-  middlewares?: Array<EndpointMiddleware>;
-}
+export type GetEndpoint<Result = unknown> = EndpointBase<RequestContext, Result>;
 
 /** Descriptor for POST routes. */
-export interface PostEndpoint<RequestBodyType = unknown, ResponseResultType = unknown> {
-  $path?: UrlTokensValidator;
-  $query?: UrlTokensValidator;
+export interface PostEndpoint<Body = unknown, Result = unknown> extends EndpointBase<RequestContext<Body>, Result> {
   /** Request body validator. */
-  $body: RequestBodyType extends object ? ObjectAssertion<RequestBodyType> : Assertion<RequestBodyType>;
-  run: (ctx: RequestContext<RequestBodyType>) => Promise<ResponseOrValue<ResponseResultType>>;
-  /** Optional middleware to execute before the handler */
-  middlewares?: Array<EndpointMiddleware>;
+  $body: Body extends object ? ObjectAssertion<Body> : Assertion<Body>;
 }
 
 /** Same as POST. Used for full object updates. */
-export type PutEndpoint<RequestBodyType = unknown, ResponseResultType = unknown> = PostEndpoint<
-  RequestBodyType,
-  ResponseResultType
->;
+export type PutEndpoint<Body = unknown, Result = unknown> = PostEndpoint<Body, Result>;
 
 /** Same as PUT. While PUT is used for the whole object update, PATCH is used for a partial update. */
-export type PatchEndpoint<RequestBodyType = unknown, ResponseResultType = unknown> = PutEndpoint<
-  RequestBodyType,
-  ResponseResultType
->;
+export type PatchEndpoint<Body = unknown, Result = unknown> = PutEndpoint<Body, Result>;
 
 /** Descriptor for DELETE routes. */
-export interface DeleteEndpoint {
-  $path?: Record<string, ValueAssertion<string>>;
-  $query?: Record<string, ValueAssertion<string>>;
-  run: (context: RequestContext) => Promise<void>;
-  /** Optional middleware to execute before the handler */
-  middlewares?: Array<EndpointMiddleware>;
-}
+export type DeleteEndpoint = EndpointBase<RequestContext, void>;
 
 /** Union type for all route registration info objects. */
 export type RouteRegistrationInfo = (

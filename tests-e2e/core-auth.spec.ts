@@ -39,7 +39,7 @@ describe('Core + Auth E2E Integration', () => {
         $body: {
           name: v => assertString(v, '400: bad'),
         },
-        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.request.name }),
+        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.body.name }),
       });
 
       const response = await makeRequest('POST', '/items', { body: { name: 'Test' } });
@@ -63,7 +63,7 @@ describe('Core + Auth E2E Integration', () => {
       const routes = getTestRoutes();
       routes.patch('items/:id', {
         $body: { name: assertString },
-        run: async (ctx: RequestContext<{ name?: string }>) => ({ value: ctx.request.name || 'none' }),
+        run: async (ctx: RequestContext<{ name?: string }>) => ({ value: ctx.body.name || 'none' }),
       });
 
       const response = await makeRequest('PATCH', '/items/456', { body: { name: 'Patched' } });
@@ -95,7 +95,7 @@ describe('Core + Auth E2E Integration', () => {
         $body: {
           name: v => assertString(v, '400: name required'),
         },
-        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.request.name }),
+        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.body.name }),
       });
 
       const response = await makeRequest('POST', '/validate-test', { body: { name: 1 } });

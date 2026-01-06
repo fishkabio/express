@@ -144,7 +144,7 @@ async function runPppHandler<RequestBodyType, ResponseResultType>(
     callValueAssertion(apiRequest, validator, `${BAD_REQUEST}: request body`);
   }
 
-  requestContext.data.request = requestContext.req.body;
+  requestContext.data.body = requestContext.req.body;
 
   return await executeWithMiddleware(
     () => route.run(requestContext),
@@ -179,8 +179,8 @@ async function executeWithMiddleware<T>(
 class RequestContextImpl<RequestBodyType> implements RequestContext<RequestBodyType> {
   constructor(readonly data: RequestContext<RequestBodyType>) {}
 
-  get request(): RequestBodyType {
-    return this.data.request;
+  get body(): RequestBodyType {
+    return this.data.body;
   }
 
   get req(): ExpressRequest {
@@ -217,7 +217,7 @@ function newRequestContext<RequestBodyType>(
   res: ExpressResponse,
 ): RequestContextImpl<RequestBodyType> {
   return new RequestContextImpl<RequestBodyType>({
-    request: openapiRequest,
+    body: openapiRequest,
     req,
     res,
     params: {
