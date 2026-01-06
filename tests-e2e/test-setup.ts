@@ -1,4 +1,4 @@
-import { assertTruthy } from '@fishka/assertions';
+import { assertTruthy, truthy } from '@fishka/assertions';
 import express, { Express } from 'express';
 import http from 'http';
 import { AddressInfo } from 'net';
@@ -54,8 +54,7 @@ export async function teardownTestServer(): Promise<void> {
  * Get the shared Express app for registering routes.
  */
 export function getTestApp(): Express {
-  assertTruthy(testApp, 'Test server not initialized. Call initializeTestServer first.');
-  return testApp;
+  return truthy(testApp, 'Test server not initialized. Call initializeTestServer first.');
 }
 
 /**

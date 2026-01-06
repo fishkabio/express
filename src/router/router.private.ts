@@ -1,12 +1,10 @@
 import { Assertion, assertTruthy, callValueAssertion, validateObject } from '@fishka/assertions';
 import * as url from 'url';
-import { getExpressApiConfig } from '../config/config';
 import { catchRouteErrors } from '../middleware/catch-all.middleware';
 import { UrlTokensValidator } from '../protocol/api.types';
 import { BAD_REQUEST } from '../utils/common.private';
 import { wrapAsApiResponse } from '../utils/conversion.private';
 import { ExpressApplication, ExpressRequest, ExpressResponse } from '../utils/express.utils';
-import { registerApiEndpointDocs } from './route-docs-handler.private';
 import {
   DeleteEndpoint,
   EndpointMiddleware,
@@ -21,55 +19,31 @@ import {
 } from './router';
 
 /** Registers a GET route. */
-export const mountGet = (
-  app: ExpressApplication,
-  route: GetEndpoint | GetListEndpoint,
-  resultType: 'object' | 'array',
-): void => mount(app, { method: 'get', route, isArrayResultType: resultType === 'array' });
+export const mountGet = (app: ExpressApplication, path: string, endpoint: GetEndpoint | GetListEndpoint): void =>
+  mount(app, { method: 'get', route: endpoint, path });
 
 /** Registers a POST route. */
-export const mountPost = <Req, Res>(app: ExpressApplication, route: PostEndpoint<Req, Res>): void =>
-  mount(app, { method: 'post', route: route as PostEndpoint });
+export const mountPost = <Req, Res>(app: ExpressApplication, path: string, endpoint: PostEndpoint<Req, Res>): void =>
+  mount(app, { method: 'post', route: endpoint as PostEndpoint<unknown, unknown>, path });
 
 /** Registers a PATCH route. */
-export const mountPatch = <Req, Res>(app: ExpressApplication, route: PatchEndpoint<Req, Res>): void =>
-  mount(app, { method: 'patch', route: route as PatchEndpoint });
+export const mountPatch = <Req, Res>(app: ExpressApplication, path: string, endpoint: PatchEndpoint<Req, Res>): void =>
+  mount(app, { method: 'patch', route: endpoint as PatchEndpoint<unknown, unknown>, path });
 
 /** Registers a PUT route. */
-export const mountPut = <Req, Res>(app: ExpressApplication, route: PutEndpoint<Req, Res>): void =>
-  mount(app, { method: 'put', route: route as PutEndpoint });
+export const mountPut = <Req, Res>(app: ExpressApplication, path: string, endpoint: PutEndpoint<Req, Res>): void =>
+  mount(app, { method: 'put', route: endpoint as PutEndpoint<unknown, unknown>, path });
 
 /** Registers a DELETE route. */
-export const mountDelete = (app: ExpressApplication, route: DeleteEndpoint): void =>
-  mount(app, { method: 'delete', route });
+export const mountDelete = (app: ExpressApplication, path: string, endpoint: DeleteEndpoint): void =>
+  mount(app, { method: 'delete', route: endpoint, path });
 
 /** Mounts a route to the Express application. */
-export function mount(app: ExpressApplication, { method, route, isArrayResultType }: RouteRegistrationInfo): void {
-  const pathPrefix = route.version ? `/v${route.version}/` : '/';
-  const config = getExpressApiConfig();
-
-  // Runtime check: require docs if configured
-  if (config.requireDocs && !route.doc) {
-    throw new Error(
-      `[API] Documentation (doc) is required for ${method.toUpperCase()} ${pathPrefix}${route.path}. ` +
-        `Set configureExpressApi({ requireDocs: false }) to disable this check.`,
-    );
-  }
-
-  // Warning for missing docs (only if not in strict mode)
-  if (config.warnOnMissingDocs && !route.doc && !config.requireDocs) {
-    console.warn(`[API] No documentation for ${method.toUpperCase()} ${pathPrefix}${route.path}`);
-  }
-
-  // Register documentation only if provided
-  if (route.doc) {
-    registerApiEndpointDocs(method, pathPrefix + route.path, route.doc, !!isArrayResultType);
-  }
-
-  const path = `${pathPrefix}${route.path}`;
-  console.log(`${`${method.toUpperCase()}     `.substring(0, 8)} ${path}`);
+export function mount(app: ExpressApplication, { method, route, path }: RouteRegistrationInfo): void {
+  const fullPath = `/${path}`;
+  console.log(`${`${method.toUpperCase()}     `.substring(0, 8)} ${fullPath}`);
   app[method](
-    path,
+    fullPath,
     catchRouteErrors(async (req, res) => {
       let result: ResponseOrValue<unknown>;
       validateUrlParameters(req, route);

@@ -1,23 +1,6 @@
 import { Assertion, ObjectAssertion, ValueAssertion } from '@fishka/assertions';
 import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
-import { DeleteDocEndpoint, GetDocEndpoint, PostDocEndpoint } from '../protocol/doc.types';
 import { ExpressRequest, ExpressResponse } from '../utils/express.utils';
-
-/** Common part of all route descriptors. */
-export interface EndpointCommon {
-  path: string;
-  version?: string;
-  /**
-   * If true, blocks requests from the restricted countries (see handler.blockRestrictedCountries).
-   * The request country can be extracted from custom headers or request context.
-   */
-  blockRestrictedCountries?: boolean;
-  /**
-   * Whether this handler can be called with restricted permission levels.
-   * Default: false (only full-access users/keys can call)
-   */
-  allowRestrictedAccess?: boolean;
-}
 
 /** Express API allows handlers to return response in the raw form. */
 export type ResponseOrValue<ResponseEntity> = ApiResponse<ResponseEntity> | ResponseEntity;
@@ -57,28 +40,25 @@ export interface RequestContext<RequestBodyType = void> {
 }
 
 /** Descriptor for GET list routes. */
-export interface GetListEndpoint<ResponseResultElementType = unknown> extends EndpointCommon {
+export interface GetListEndpoint<ResponseResultElementType = unknown> {
   pathValidator?: UrlTokensValidator;
   queryValidator?: UrlTokensValidator;
-  doc?: GetDocEndpoint<ResponseResultElementType>;
   run: (context: RequestContext) => Promise<ResponseOrValue<Array<ResponseResultElementType>>>;
   /** Optional middleware to execute before the handler */
   middlewares?: Array<EndpointMiddleware>;
 }
 
 /** Descriptor for GET routes. */
-export interface GetEndpoint<ResponseResultType = unknown> extends EndpointCommon {
+export interface GetEndpoint<ResponseResultType = unknown> {
   pathValidator?: UrlTokensValidator;
   queryValidator?: UrlTokensValidator;
-  doc?: GetDocEndpoint<ResponseResultType>;
   run: (context: RequestContext) => Promise<ResponseOrValue<ResponseResultType>>;
   /** Optional middleware to execute before the handler */
   middlewares?: Array<EndpointMiddleware>;
 }
 
 /** Descriptor for POST routes. */
-export interface PostEndpoint<RequestBodyType = unknown, ResponseResultType = unknown> extends EndpointCommon {
-  doc?: PostDocEndpoint<RequestBodyType, ResponseResultType>;
+export interface PostEndpoint<RequestBodyType = unknown, ResponseResultType = unknown> {
   pathValidator?: UrlTokensValidator;
   queryValidator?: UrlTokensValidator;
   /** Request body validator. */
@@ -101,10 +81,9 @@ export type PatchEndpoint<RequestBodyType = unknown, ResponseResultType = unknow
 >;
 
 /** Descriptor for DELETE routes. */
-export interface DeleteEndpoint extends EndpointCommon {
+export interface DeleteEndpoint {
   pathValidator?: Record<string, ValueAssertion<string>>;
   queryValidator?: Record<string, ValueAssertion<string>>;
-  doc?: DeleteDocEndpoint;
   run: (context: RequestContext) => Promise<void>;
   /** Optional middleware to execute before the handler */
   middlewares?: Array<EndpointMiddleware>;
@@ -117,4 +96,4 @@ export type RouteRegistrationInfo = (
   | { method: 'patch'; route: PatchEndpoint }
   | { method: 'put'; route: PutEndpoint }
   | { method: 'delete'; route: DeleteEndpoint }
-) & { isArrayResultType?: boolean };
+) & { path: string };

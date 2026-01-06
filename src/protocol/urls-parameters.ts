@@ -1,12 +1,9 @@
-import { DocValueFormat } from './doc.types';
 import { URL_PARAMETER_INFO } from './urls-parameters.private';
 
 /** Globally identified URL (path or query) parameter info. */
-export interface UrlParameterInfo {
-  doc: { type: 'string' | 'integer'; text: string; description: string; format?: DocValueFormat };
-}
+export type UrlParameterInfo = Record<string, never>;
 
-/** Registers a new URL parameter for validation and documentation. */
+/** Registers a new URL parameter. */
 export function registerUrlParameter(name: string, info: UrlParameterInfo): void {
   URL_PARAMETER_INFO[name] = info;
 }

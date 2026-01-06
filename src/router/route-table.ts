@@ -1,5 +1,13 @@
 import { ExpressApplication } from '../utils/express.utils';
-import { DeleteEndpoint, GetEndpoint, PatchEndpoint, PostEndpoint, PutEndpoint } from './router';
+import {
+  DeleteEndpoint,
+  GetEndpoint,
+  PatchEndpoint,
+  PostEndpoint,
+  PutEndpoint,
+  RequestContext,
+  ResponseOrValue,
+} from './router';
 import { mountDelete, mountGet, mountPatch, mountPost, mountPut } from './router.private';
 
 /**
@@ -9,29 +17,37 @@ import { mountDelete, mountGet, mountPatch, mountPost, mountPut } from './router
 export class RouteTable {
   constructor(private readonly app: ExpressApplication) {}
 
-  get<T>(route: GetEndpoint<T> | GetEndpoint<T[]>): this {
-    const resultType = Array.isArray({}) ? 'array' : 'object';
-    mountGet(this.app, route as GetEndpoint<T>, resultType === 'array' ? 'array' : 'object');
+  get<T>(path: string, endpoint: GetEndpoint<T> | GetEndpoint<T[]>): this;
+  get<T>(path: string, run: (context: RequestContext) => Promise<ResponseOrValue<T>>): this;
+  get<T>(
+    path: string,
+    endpointOrRun: GetEndpoint<T> | GetEndpoint<T[]> | ((context: RequestContext) => Promise<ResponseOrValue<T>>),
+  ): this {
+    const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
+    mountGet(this.app, path, endpoint as GetEndpoint<T>);
     return this;
   }
 
-  post<Req, Res>(route: PostEndpoint<Req, Res>): this {
-    mountPost(this.app, route);
+  post<Req, Res>(path: string, endpoint: PostEndpoint<Req, Res>): this {
+    mountPost(this.app, path, endpoint);
     return this;
   }
 
-  patch<Req, Res>(route: PatchEndpoint<Req, Res>): this {
-    mountPatch(this.app, route);
+  patch<Req, Res>(path: string, endpoint: PatchEndpoint<Req, Res>): this {
+    mountPatch(this.app, path, endpoint);
     return this;
   }
 
-  put<Req, Res>(route: PutEndpoint<Req, Res>): this {
-    mountPut(this.app, route);
+  put<Req, Res>(path: string, endpoint: PutEndpoint<Req, Res>): this {
+    mountPut(this.app, path, endpoint);
     return this;
   }
 
-  delete(route: DeleteEndpoint): this {
-    mountDelete(this.app, route);
+  delete(path: string, endpoint: DeleteEndpoint): this;
+  delete(path: string, run: (context: RequestContext) => Promise<void>): this;
+  delete(path: string, endpointOrRun: DeleteEndpoint | ((context: RequestContext) => Promise<void>)): this {
+    const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
+    mountDelete(this.app, path, endpoint);
     return this;
   }
 }

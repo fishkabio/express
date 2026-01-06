@@ -2,7 +2,6 @@ import { assertString } from '@fishka/assertions';
 import {
   BasicAuthStrategy,
   BearerAuthStrategy,
-  buildSchemaJsonResponse,
   createAuthMiddleware,
   getAuthUser,
   registerUrlParameter,
@@ -10,20 +9,13 @@ import {
 } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
-registerUrlParameter('id', {
-  doc: {
-    type: 'string',
-    text: 'ID',
-    description: 'Resource ID.',
-  },
-});
+registerUrlParameter('id', {});
 
 describe('Core + Auth E2E Integration', () => {
   describe('Core routing (top-level paths, no version)', () => {
-    it('should handle GET requests at top-level path', async () => {
+    it('should handle GET requests at top-level path with object syntax', async () => {
       const routes = getTestRoutes();
-      routes.get({
-        path: 'health',
+      routes.get('health', {
         run: async () => ({ value: 'healthy' }),
       });
 
@@ -32,10 +24,18 @@ describe('Core + Auth E2E Integration', () => {
       expect(getApiResult<{ value: string }>(response).value).toBe('healthy');
     });
 
+    it('should handle GET requests at top-level path with function shorthand', async () => {
+      const routes = getTestRoutes();
+      routes.get<{ value: string }>('health-short', async () => ({ value: 'healthy-short' }));
+
+      const response = await makeRequest('GET', '/health-short');
+      expect(response.status).toBe(200);
+      expect(getApiResult<{ value: string }>(response).value).toBe('healthy-short');
+    });
+
     it('should handle POST requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.post({
-        path: 'items',
+      routes.post('items', {
         validator: {
           name: v => assertString(v, '400: bad'),
         },
@@ -49,8 +49,7 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle PUT requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.put({
-        path: 'items/:id',
+      routes.put('items/:id', {
         validator: { name: assertString },
         run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.params.get('id') }),
       });
@@ -62,8 +61,7 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle PATCH requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.patch({
-        path: 'items/:id',
+      routes.patch('items/:id', {
         validator: { name: assertString },
         run: async (ctx: RequestContext<{ name?: string }>) => ({ value: ctx.request.name || 'none' }),
       });
@@ -73,10 +71,9 @@ describe('Core + Auth E2E Integration', () => {
       expect(getApiResult<{ value: string }>(response).value).toBe('Patched');
     });
 
-    it('should handle DELETE requests at top-level path', async () => {
+    it('should handle DELETE requests at top-level path with object syntax', async () => {
       const routes = getTestRoutes();
-      routes.delete({
-        path: 'items/:id',
+      routes.delete('items/:id', {
         run: async () => {},
       });
 
@@ -84,10 +81,17 @@ describe('Core + Auth E2E Integration', () => {
       expect(response.status).toBe(200);
     });
 
+    it('should handle DELETE requests at top-level path with function shorthand', async () => {
+      const routes = getTestRoutes();
+      routes.delete('items-short/:id', async () => {});
+
+      const response = await makeRequest('DELETE', '/items-short/789');
+      expect(response.status).toBe(200);
+    });
+
     it('should return 400 for invalid request body', async () => {
       const routes = getTestRoutes();
-      routes.post({
-        path: 'validate-test',
+      routes.post('validate-test', {
         validator: {
           name: v => assertString(v, '400: name required'),
         },
@@ -99,55 +103,6 @@ describe('Core + Auth E2E Integration', () => {
     });
   });
 
-  describe('API versioning', () => {
-    it('should handle version: "1" with /v1/ prefix', async () => {
-      const routes = getTestRoutes();
-      routes.get({
-        path: 'versioned',
-        version: '1',
-        run: async () => ({ value: 'v1' }),
-      });
-
-      const response = await makeRequest('GET', '/v1/versioned');
-      expect(response.status).toBe(200);
-      expect(getApiResult<{ value: string }>(response).value).toBe('v1');
-    });
-
-    it('should handle version: "2" with /v2/ prefix', async () => {
-      const routes = getTestRoutes();
-      routes.get({
-        path: 'versioned',
-        version: '2',
-        run: async () => ({ value: 'v2' }),
-      });
-
-      const response = await makeRequest('GET', '/v2/versioned');
-      expect(response.status).toBe(200);
-      expect(getApiResult<{ value: string }>(response).value).toBe('v2');
-    });
-
-    it('should allow both versioned and top-level endpoints simultaneously', async () => {
-      const routes = getTestRoutes();
-
-      routes.get({
-        path: 'mixed',
-        run: async () => ({ value: 'top-level' }),
-      });
-
-      routes.get({
-        path: 'mixed',
-        version: '1',
-        run: async () => ({ value: 'v1' }),
-      });
-
-      const topResponse = await makeRequest('GET', '/mixed');
-      expect(getApiResult<{ value: string }>(topResponse).value).toBe('top-level');
-
-      const v1Response = await makeRequest('GET', '/v1/mixed');
-      expect(getApiResult<{ value: string }>(v1Response).value).toBe('v1');
-    });
-  });
-
   describe('Authentication', () => {
     it('should deny request without Authorization header', async () => {
       const routes = getTestRoutes();
@@ -155,8 +110,7 @@ describe('Core + Auth E2E Integration', () => {
         u === 'admin' && p === 'secret' ? { id: '1', username: u } : null,
       );
 
-      routes.get<{ value: string }>({
-        path: 'protected',
+      routes.get<{ value: string }>('protected', {
         middlewares: [createAuthMiddleware(strategy)],
         run: async (ctx: RequestContext) => {
           const user = getAuthUser(ctx) as { id: string };
@@ -174,8 +128,7 @@ describe('Core + Auth E2E Integration', () => {
         u === 'user' && p === 'pass' ? { id: 'user-1', username: u } : null,
       );
 
-      routes.get<{ value: string }>({
-        path: 'secure',
+      routes.get<{ value: string }>('secure', {
         middlewares: [createAuthMiddleware(strategy)],
         run: async (ctx: RequestContext) => {
           const user = getAuthUser(ctx) as { id: string };
@@ -197,8 +150,7 @@ describe('Core + Auth E2E Integration', () => {
         token === 'valid-token' ? { id: 'user-2', username: 'bearer-user' } : null,
       );
 
-      routes.get<{ value: string }>({
-        path: 'bearer-protected',
+      routes.get<{ value: string }>('bearer-protected', {
         middlewares: [createAuthMiddleware(strategy)],
         run: async ctx => {
           const user = getAuthUser(ctx) as { id: string };
@@ -217,8 +169,7 @@ describe('Core + Auth E2E Integration', () => {
       const routes = getTestRoutes();
       const strategy = new BearerAuthStrategy(async () => null);
 
-      routes.get({
-        path: 'bearer-invalid',
+      routes.get('bearer-invalid', {
         middlewares: [createAuthMiddleware(strategy)],
         run: async () => ({}),
       });
@@ -227,66 +178,6 @@ describe('Core + Auth E2E Integration', () => {
         headers: { Authorization: 'Bearer invalid' },
       });
       expect(response.status).toBe(401);
-    });
-  });
-
-  describe('OpenAPI documentation generation', () => {
-    it('should document top-level endpoint (no version)', async () => {
-      const routes = getTestRoutes();
-      routes.get({
-        path: 'docs-top-level',
-        doc: {
-          summary: 'Top level endpoint',
-          description: 'An endpoint without version prefix.',
-          response: { message: { text: 'Message', type: 'string' }, $name: 'DocsTopLevelRes' },
-        },
-        run: async () => ({ message: 'ok' }),
-      });
-
-      const schema = JSON.parse(buildSchemaJsonResponse());
-      expect(schema.openapi).toBe('3.0.1');
-      expect(schema.paths['/docs-top-level']).toBeDefined();
-      expect(schema.paths['/docs-top-level'].get.summary).toBe('Top level endpoint');
-    });
-
-    it('should document versioned endpoint with /v1/ prefix', async () => {
-      const routes = getTestRoutes();
-      routes.get({
-        path: 'docs-versioned',
-        version: '1',
-        doc: {
-          summary: 'Versioned v1 endpoint',
-          description: 'An endpoint with v1 prefix.',
-          response: { message: { text: 'Message', type: 'string' }, $name: 'DocsVersionedRes' },
-        },
-        run: async () => ({ message: 'v1' }),
-      });
-
-      const schema = JSON.parse(buildSchemaJsonResponse());
-      const v = schema.paths['/v1/docs-versioned'];
-      expect(v).toBeDefined();
-      expect(v.get.summary).toBe('Versioned v1 endpoint');
-    });
-
-    it('should document POST request/response bodies', async () => {
-      const routes = getTestRoutes();
-      routes.post<{ title: string }, { id: string }>({
-        path: 'docs-post',
-        doc: {
-          summary: 'Create resource',
-          description: 'Creates a new resource',
-          request: { title: { text: 'Title', type: 'string', isRequired: true }, $name: 'DocsPostReq' },
-          response: { id: { text: 'ID', type: 'string' }, $name: 'DocsPostRes' },
-        },
-        validator: { title: v => assertString(v, '400: title required') },
-        run: async () => ({ id: '1' }),
-      });
-
-      const schema = JSON.parse(buildSchemaJsonResponse());
-      const v = schema.paths['/docs-post'].post;
-      expect(v.requestBody).toBeDefined();
-      expect(v.responses['200']).toBeDefined();
-      expect(v.responses['400']).toBeDefined();
     });
   });
 });

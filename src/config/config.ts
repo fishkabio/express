@@ -1,22 +1,6 @@
-export interface GlobalExpressApiConfig {
-  /**
-   * Require documentation for all endpoints.
-   * When true, throws an error at mount time if endpoint is missing 'doc' field.
-   * Default: false
-   */
-  requireDocs?: boolean;
-  /**
-   * Show warning for endpoints without documentation during startup.
-   * When true, logs a brief warning for each endpoint without 'doc' field.
-   * Default: false
-   */
-  warnOnMissingDocs?: boolean;
-}
+export type GlobalExpressApiConfig = Record<string, never>;
 
-const defaultConfig: GlobalExpressApiConfig = {
-  requireDocs: false,
-  warnOnMissingDocs: false,
-};
+const defaultConfig: GlobalExpressApiConfig = {};
 
 let currentConfig: GlobalExpressApiConfig = { ...defaultConfig };
 
@@ -25,7 +9,7 @@ let currentConfig: GlobalExpressApiConfig = { ...defaultConfig };
  * @param config Partial configuration to merge with current settings
  */
 export function configureExpressApi(config: Partial<GlobalExpressApiConfig>): void {
-  currentConfig = { ...currentConfig, ...config };
+  currentConfig = { ...currentConfig, ...config } as GlobalExpressApiConfig;
 }
 
 /**
