@@ -24,6 +24,3 @@ export interface ApiResponse<ResponseEntity = unknown> {
 export function response<T = unknown>(result: T): ApiResponse<T> {
   return { result };
 }
-
-/** Http methods enum used in API. */
-export type HttpMethod = 'get' | 'post' | 'patch' | 'put' | 'delete';

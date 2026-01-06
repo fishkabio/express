@@ -11,6 +11,7 @@ import { catchRouteErrors } from '../middleware/catch-all.middleware';
 import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
 import { URL_PARAMETER_INFO } from '../protocol/url-parameters';
 import { BAD_REQUEST } from '../utils/common';
+import { AuthUser } from '../auth/auth.types';
 import { wrapAsApiResponse } from '../utils/conversion';
 import { ExpressApplication, ExpressRequest, ExpressResponse } from '../utils/express.utils';
 
@@ -34,6 +35,9 @@ export interface RequestContext<Body = void> {
   req: ExpressRequest;
   /** Express Response object. */
   res: ExpressResponse;
+
+  /** Authenticated user (if any). Populated by auth middleware. */
+  authUser?: AuthUser;
 
   /**
    * Generic parameter access with lazy validation.

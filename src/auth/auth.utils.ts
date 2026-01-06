@@ -27,7 +27,7 @@ export function createAuthMiddleware<User extends AuthUser = AuthUser>(
     const user = await strategy.validateCredentials(credentials);
 
     // Store authenticated user in state for the handler to access
-    context.state.set('authUser', user);
+    context.authUser = user;
 
     // Optional: Call success callback
     if (onSuccess) {
@@ -49,7 +49,7 @@ export function createAuthMiddleware<User extends AuthUser = AuthUser>(
  * @throws Error if user is not found in context
  */
 export function getAuthUser<User extends AuthUser = AuthUser>(context: RequestContext): User {
-  const user = context.state.get('authUser');
+  const user = context.authUser;
   assertTruthy(user, '401 UNAUTHORIZED: User not found in state. Did you add auth middleware?');
   return user as User;
 }
@@ -63,5 +63,5 @@ export function getAuthUser<User extends AuthUser = AuthUser>(context: RequestCo
  * @returns The authenticated user, or undefined if not found
  */
 export function tryGetAuthUser<User extends AuthUser = AuthUser>(context: RequestContext): User | undefined {
-  return context.state.get('authUser') as User | undefined;
+  return context.authUser as User | undefined;
 }
