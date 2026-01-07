@@ -5,21 +5,9 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/esm/index.d.ts",
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js"
-    }
-  },
+  "private": false,
+  "license": "MIT",
   "sideEffects": false,
-  "files": [
-    "dist"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://gitea.com/fishka/express.git"
-  },
   "scripts": {
     "prebuild": "npm run clean",
     "build:esm": "tsc -p tsconfig.esm.json",
@@ -39,7 +27,6 @@
     "rest-api",
     "rest"
   ],
-  "license": "MIT",
   "dependencies": {
     "@fishka/assertions": "^1.0.0",
     "express": "^5.0.0"
@@ -58,6 +45,23 @@
     "rimraf": "^6.1.2",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://gitea.com/fishka/express.git"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=20.0.0",
