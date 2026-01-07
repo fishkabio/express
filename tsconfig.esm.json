@@ -4,7 +4,8 @@
     "module": "ES2020",
     "outDir": "./dist/esm",
     "rootDir": "./src",
-    "noEmit": false
+    "noEmit": false,
+    "declaration": true
   },
   "include": ["src/**/*"],
   "exclude": ["**/*.spec.ts", "**/*.test.ts"]
