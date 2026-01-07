@@ -33,7 +33,7 @@ routes.get<Array<{ id: string; name: string }>>('users', async () => [
 
 // POST /users
 routes.post<{ name: string }, { id: string }>('users', {
-  $body: { name: v => assertString(v, '400: name required') },
+  $body: { name: v => assertString(v, 'name required') },
   run: async ctx => ({ id: '1' }),
 });
 
@@ -51,14 +51,14 @@ Global validation can be enforced for specific URL parameters (e.g., `:id`, `:or
 
 ```typescript
 import { registerUrlParameter } from '@fishka/express';
-import { assertString } from '@fishka/assertions';
+import { assertString, assertTruthy } from '@fishka/assertions';
 
 // Register parameters with optional validation
 registerUrlParameter('orgId', {
-  validator: (val) => {
+  validator: val => {
     assertString(val);
-    if (!val.startsWith('org-')) throw new Error('400: Invalid Organization ID');
-  }
+    assertTruthy(val.startsWith('org-'), 'Invalid Organization ID');
+  },
 });
 
 // Now /orgs/:orgId will automatically validate that orgId starts with 'org-'
@@ -95,19 +95,27 @@ app.use(
 );
 ```
 
+## HTTP Status Code in Validation
+
+For cases where you need specific HTTP status codes (like 401 for authentication, 404 for not found), use `assertHttp`:
+
+```typescript
+import { assertHttp, HTTP_UNAUTHORIZED, HTTP_NOT_FOUND } from '@fishka/express';
+
+// In a validator or route handler
+assertHttp(req.headers.authorization, HTTP_UNAUTHORIZED, 'Authorization required');
+assertHttp(user, HTTP_NOT_FOUND, 'User not found');
+assertHttp(user.isAdmin, HTTP_FORBIDDEN, 'Admin access required');
+```
+
 ## Complete Example
 
 Here is a full initialization including TLS context, global validation, and proper error handling.
 
 ```typescript
 import express from 'express';
-import { 
-  createRouteTable, 
-  createTlsMiddleware, 
-  catchAllMiddleware,
-  registerUrlParameter 
-} from '@fishka/express';
-import { assertString } from '@fishka/assertions';
+import { createRouteTable, createTlsMiddleware, catchAllMiddleware, registerUrlParameter } from '@fishka/express';
+import { assertString, assertTruthy } from '@fishka/assertions';
 
 const app = express();
 
@@ -119,7 +127,7 @@ app.use(createTlsMiddleware());
 
 // 3. Register global URL parameters
 registerUrlParameter('id', {
-  validator: (val) => assertString(val)
+  validator: val => assertString(val),
 });
 
 // 4. Define routes
