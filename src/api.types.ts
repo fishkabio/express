@@ -46,7 +46,7 @@ export class HttpError extends Error {
  * @see {@link HTTP_FORBIDDEN}
  * @see {@link HTTP_UNAUTHORIZED}
  */
-export function assertHttp(condition: boolean, status: number, message: string): void {
+export function assertHttp(condition: boolean, status: number, message: string): asserts condition {
   assertTruthy(condition, () => new HttpError(status, message));
 }
 
