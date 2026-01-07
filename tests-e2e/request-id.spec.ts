@@ -1,4 +1,4 @@
-import { configureExpressApi, resetExpressApiConfig, INTERNAL_ERROR_STATUS } from '../src';
+import { configureExpressApi, resetExpressApiConfig, HTTP_INTERNAL_SERVER_ERROR } from '../src';
 import { getTestRoutes, makeRequest } from './test-setup';
 
 describe('Request ID Handling', () => {
@@ -41,7 +41,7 @@ describe('Request ID Handling', () => {
       headers: { 'x-request-id': customId }
     });
 
-    expect(response.status).toBe(INTERNAL_ERROR_STATUS);
+    expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
     expect(response.body?.requestId).toBe(customId);
   });
 

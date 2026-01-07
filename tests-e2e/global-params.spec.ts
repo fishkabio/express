@@ -1,5 +1,5 @@
 import { assertString } from '@fishka/assertions';
-import { registerUrlParameter, HttpError, BAD_REQUEST_STATUS } from '../src';
+import { registerUrlParameter, assertHttp, HTTP_BAD_REQUEST } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
 describe('Global URL Parameters', () => {
@@ -7,9 +7,7 @@ describe('Global URL Parameters', () => {
   registerUrlParameter('orgId', {
     validator: (val: unknown) => {
       assertString(val);
-      if (typeof val === 'string' && !val.startsWith('org-')) {
-        throw new HttpError(BAD_REQUEST_STATUS, 'Organization ID must start with "org-"');
-      }
+      assertHttp(typeof val === 'string' && val.startsWith('org-'), HTTP_BAD_REQUEST, 'Organization ID must start with "org-"');
     }
   });
 

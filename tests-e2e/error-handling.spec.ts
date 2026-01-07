@@ -1,6 +1,6 @@
 import { assertString } from '@fishka/assertions';
 import { getTestApp, getTestRoutes, makeRequest } from './test-setup';
-import { HttpError, FORBIDDEN_STATUS, catchAllMiddleware } from '../src';
+import { HttpError, assertHttp, HTTP_BAD_REQUEST, HTTP_FORBIDDEN, catchAllMiddleware } from '../src';
 
 describe('Structured Error Handling', () => {
   
@@ -12,9 +12,8 @@ describe('Structured Error Handling', () => {
       routes.get<{ id: string }>('test-validation/:id', {
         $path: {
           id: (v) => { 
-            // Throws a regular Error
             assertString(v);
-            if (v !== 'valid') throw new Error('Invalid ID'); 
+            assertHttp(v === 'valid', HTTP_BAD_REQUEST, 'Invalid ID');
           }
         },
         run: async ctx => ({ id: ctx.params.get('id') })
@@ -58,11 +57,11 @@ describe('Structured Error Handling', () => {
     it('should return HttpError with separate details field', async () => {
       const routes = getTestRoutes();
       routes.get('test-http-error-details', async () => {
-        throw new HttpError(FORBIDDEN_STATUS, 'Forbidden action', { reason: 'Insufficient permissions', code: 'PRO-001' });
+        throw new HttpError(HTTP_FORBIDDEN, 'Forbidden action', { reason: 'Insufficient permissions', code: 'PRO-001' });
       });
 
       const response = await makeRequest('GET', '/test-http-error-details');
-      expect(response.status).toBe(FORBIDDEN_STATUS);
+      expect(response.status).toBe(HTTP_FORBIDDEN);
       expect(response.body?.error).toBe('Forbidden action');
       expect(response.body?.details).toEqual({ reason: 'Insufficient permissions', code: 'PRO-001' });
     });

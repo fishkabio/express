@@ -1,4 +1,5 @@
 import { assertString, assertTruthy, ValueAssertion } from '@fishka/assertions';
+import { HTTP_BAD_REQUEST } from './http-status-codes';
 
 export type UrlTokensValidator = Record<string, ValueAssertion<string>>;
 
@@ -14,6 +15,37 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Asserts that a condition is true, throwing an HttpError with the specified status code if false.
+ * This function is designed for HTTP-specific validation where you want to throw appropriate HTTP status codes.
+ *
+ * @param condition - The condition to check. If false, an HttpError will be thrown.
+ * @param status - The HTTP status code to use in the HttpError (e.g., 400 for Bad Request, 404 for Not Found).
+ * @param message - The error message to include in the HttpError.
+ *
+ * @throws {HttpError} If the condition is false, throws an HttpError with the specified status and message.
+ *
+ * @example
+ * ```typescript
+ * // Validate required parameter
+ * assertHttp(typeof userId === 'string', HTTP_BAD_REQUEST, 'User ID must be a string');
+ *
+ * // Validate resource existence
+ * assertHttp(user !== null, HTTP_NOT_FOUND, 'User not found');
+ *
+ * // Validate authorization
+ * assertHttp(user.isAdmin, HTTP_FORBIDDEN, 'Admin access required');
+ *
+ * // Validate authentication
+ * assertHttp(req.headers.authorization, HTTP_UNAUTHORIZED, 'Authorization header required');
+ * ```
+ *
+ * @see {@link HttpError}
+ * @see {@link HTTP_BAD_REQUEST}
+ * @see {@link HTTP_NOT_FOUND}
+ * @see {@link HTTP_FORBIDDEN}
+ * @see {@link HTTP_UNAUTHORIZED}
+ */
 export function assertHttp(condition: boolean, status: number, message: string): void {
   assertTruthy(condition, () => new HttpError(status, message));
 }
@@ -72,8 +104,9 @@ export function registerUrlParameter(name: string, info: UrlParameterInfo): void
  */
 export function assertUrlParameter(name: unknown): asserts name is string {
   assertString(name, 'Url parameter name must be a string');
-  assertTruthy(
-    URL_PARAMETER_INFO[name],
+  assertHttp(
+    URL_PARAMETER_INFO[name] !== undefined,
+    HTTP_BAD_REQUEST,
     `Invalid URL parameter: '${name}'. Please register it using 'registerUrlParameter('${name}', ...)'`,
   );
 }

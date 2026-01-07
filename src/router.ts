@@ -8,7 +8,7 @@ import {
   ValueAssertion,
 } from '@fishka/assertions';
 import * as url from 'url';
-import { ApiResponse, HttpError, URL_PARAMETER_INFO, UrlTokensValidator } from './api.types';
+import { ApiResponse, HttpError, URL_PARAMETER_INFO, UrlTokensValidator, assertHttp } from './api.types';
 import { HTTP_BAD_REQUEST, HTTP_OK } from './http-status-codes';
 import { AuthUser } from './auth/auth.types';
 import { catchRouteErrors } from './error-handling';
@@ -308,10 +308,10 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
       // We strictly assume it is an object because of the type definition (function | object)
       const objectValidator = validator as ObjectAssertion<RequestBodyType>;
       const isEmptyValidator = Object.keys(objectValidator).length === 0;
-      const error = validateObject(apiRequest, objectValidator, `${HTTP_BAD_REQUEST}: request body`, {
+      const errorMessage = validateObject(apiRequest, objectValidator, `${HTTP_BAD_REQUEST}: request body`, {
         failOnUnknownFields: !isEmptyValidator,
       });
-      assertTruthy(!error, error);
+      assertHttp(!errorMessage, HTTP_BAD_REQUEST, errorMessage || 'Request body validation failed');
     }
   } catch (error) {
     if (error instanceof HttpError) throw error;
