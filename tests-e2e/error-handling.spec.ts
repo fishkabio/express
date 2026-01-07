@@ -1,6 +1,6 @@
 import { assertString } from '@fishka/assertions';
-import { getTestRoutes, makeRequest } from './test-setup';
-import { HttpError, FORBIDDEN_STATUS } from '../src';
+import { getTestApp, getTestRoutes, makeRequest } from './test-setup';
+import { HttpError, FORBIDDEN_STATUS, catchAllMiddleware } from '../src';
 
 describe('Structured Error Handling', () => {
   
@@ -65,6 +65,24 @@ describe('Structured Error Handling', () => {
       expect(response.status).toBe(FORBIDDEN_STATUS);
       expect(response.body?.error).toBe('Forbidden action');
       expect(response.body?.details).toEqual({ reason: 'Insufficient permissions', code: 'PRO-001' });
+    });
+  });
+
+  describe('Global catchAllMiddleware', () => {
+    it('should catch errors from middleware before routes', async () => {
+      const app = getTestApp();
+      
+      // Add a middleware that throws
+      app.use('/test-global-error', (_req, _res, next) => {
+        next(new Error('Global failure'));
+      });
+
+      // Ensure catchAllMiddleware is at the end (test-setup doesn't add it)
+      app.use(catchAllMiddleware);
+
+      const response = await makeRequest('GET', '/test-global-error');
+      expect(response.status).toBe(500);
+      expect(response.body?.error).toBe('Global failure');
     });
   });
 });

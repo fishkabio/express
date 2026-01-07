@@ -95,6 +95,43 @@ app.use(
 );
 ```
 
+## Complete Example
+
+Here is a full initialization including TLS context, global validation, and proper error handling.
+
+```typescript
+import express from 'express';
+import { 
+  createRouteTable, 
+  createTlsMiddleware, 
+  catchAllMiddleware,
+  registerUrlParameter 
+} from '@fishka/express';
+import { assertString } from '@fishka/assertions';
+
+const app = express();
+
+// 1. Basic express middleware
+app.use(express.json());
+
+// 2. Initialize TLS context (Request IDs, etc.)
+app.use(createTlsMiddleware());
+
+// 3. Register global URL parameters
+registerUrlParameter('id', {
+  validator: (val) => assertString(val)
+});
+
+// 4. Define routes
+const routes = createRouteTable(app);
+routes.get('health', async () => ({ status: 'UP' }));
+
+// 5. Global error handler (Must be after route definitions)
+app.use(catchAllMiddleware);
+
+app.listen(3000);
+```
+
 ## License
 
 MIT
