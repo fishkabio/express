@@ -1,7 +1,7 @@
 import { getMessageFromError } from '@fishka/assertions';
 import { NextFunction } from 'express';
 import { ApiResponse, HttpError } from './api.types';
-import { BAD_REQUEST_STATUS, INTERNAL_ERROR_STATUS } from './http.types';
+import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from './http-status-codes';
 import { getRequestLocalStorage } from './thread-local/thread-local-storage';
 import { wrapAsApiResponse } from './utils/conversion.utils';
 import { ExpressFunction, ExpressRequest, ExpressResponse } from './utils/express.utils';
@@ -23,7 +23,7 @@ function buildApiResponse(error: unknown): ApiResponse & { status: number } {
     response = {
       ...wrapAsApiResponse(undefined),
       error: errorMessage && errorMessage.length > 0 ? errorMessage : 'Internal error',
-      status: INTERNAL_ERROR_STATUS,
+      status: HTTP_INTERNAL_SERVER_ERROR,
     };
   }
 
@@ -40,7 +40,7 @@ export function catchRouteErrors(fn: ExpressFunction): ExpressFunction {
       await fn(req, res, next);
     } catch (error) {
       const apiResponse = buildApiResponse(error);
-      if (apiResponse.status >= INTERNAL_ERROR_STATUS) {
+      if (apiResponse.status >= HTTP_INTERNAL_SERVER_ERROR) {
         console.error(`catchRouteErrors: ${req.path}`, error);
       } else {
         console.log(`catchRouteErrors: ${req.path}`, error);
@@ -69,7 +69,7 @@ export async function catchAllMiddleware(
   console.error('catchAllMiddleware:', getMessageFromError(error));
   const apiResponse =
     error instanceof SyntaxError // JSON body parsing error.
-      ? buildApiResponse(`${BAD_REQUEST_STATUS}: Failed to parse request: ${error.message}`)
+      ? buildApiResponse(`${HTTP_BAD_REQUEST}: Failed to parse request: ${error.message}`)
       : buildApiResponse(error);
   res.status(apiResponse.status);
   res.send(apiResponse);

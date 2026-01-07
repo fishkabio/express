@@ -9,9 +9,13 @@ export class HttpError extends Error {
     public readonly details?: Record<string, unknown>,
   ) {
     super(message);
-    // Restore prototype chain for instanceof checks
+    // Restore the prototype chain for instanceof checks.
     Object.setPrototypeOf(this, HttpError.prototype);
   }
+}
+
+export function assertHttp(condition: boolean, status: number, message: string): void {
+  assertTruthy(condition, () => new HttpError(status, message));
 }
 
 export interface ApiResponse<ResponseEntity = unknown> {

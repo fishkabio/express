@@ -2,7 +2,7 @@ import { assertTruthy, truthy } from '@fishka/assertions';
 import express, { Express } from 'express';
 import http from 'http';
 import { AddressInfo } from 'net';
-import { createRouteTable, createTlsMiddleware, INTERNAL_ERROR_STATUS } from '../src';
+import { createRouteTable, createTlsMiddleware, HTTP_INTERNAL_SERVER_ERROR } from '../src';
 
 /**
  * Shared test server that is created once and reused across all e2e tests.
@@ -123,7 +123,7 @@ export function makeRequest(
             parsedBody = { raw: data };
           }
           resolve({
-            status: res.statusCode || INTERNAL_ERROR_STATUS,
+            status: res.statusCode || HTTP_INTERNAL_SERVER_ERROR,
             body: parsedBody,
             headers: res.headers as Record<string, string | string[]>,
           });

@@ -9,7 +9,7 @@ import {
 } from '@fishka/assertions';
 import * as url from 'url';
 import { ApiResponse, HttpError, URL_PARAMETER_INFO, UrlTokensValidator } from './api.types';
-import { BAD_REQUEST_STATUS, OK_STATUS } from './http.types';
+import { HTTP_BAD_REQUEST, HTTP_OK } from './http-status-codes';
 import { AuthUser } from './auth/auth.types';
 import { catchRouteErrors } from './error-handling';
 import { getRequestLocalStorage } from './thread-local/thread-local-storage';
@@ -188,7 +188,7 @@ function createRouteHandler(
           response.requestId = tls.requestId;
         }
     
-        response.status = response.status || OK_STATUS;
+        response.status = response.status || HTTP_OK;
         res.status(response.status);
         res.send(response);
       };}
@@ -214,13 +214,13 @@ function validateUrlParameters(
       // Run Global Validation if registered.
       const globalValidator = URL_PARAMETER_INFO[key]?.validator;
       if (globalValidator) {
-        callValueAssertion(value, globalValidator, `${BAD_REQUEST_STATUS}`);
+        callValueAssertion(value, globalValidator, `${HTTP_BAD_REQUEST}`);
       }
 
       // Run Local Validation.
       const validator = $path?.[key];
       if (validator) {
-        callValueAssertion(value, validator, `${BAD_REQUEST_STATUS}`);
+        callValueAssertion(value, validator, `${HTTP_BAD_REQUEST}`);
       }
     }
 
@@ -234,16 +234,16 @@ function validateUrlParameters(
         // Query params can be string | string[] | undefined. Global validators usually expect string.
         // We only validate if it's a single value or handle array in validator.
         // For simplicity, we pass value as is (unknown) to assertion.
-        callValueAssertion(value, globalValidator as ValueAssertion<unknown>, `${BAD_REQUEST_STATUS}`);
+        callValueAssertion(value, globalValidator as ValueAssertion<unknown>, `${HTTP_BAD_REQUEST}`);
       }
 
       const validator = $query?.[key];
       if (validator) {
-        callValueAssertion(value, validator, `${BAD_REQUEST_STATUS}`);
+        callValueAssertion(value, validator, `${HTTP_BAD_REQUEST}`);
       }
     }
   } catch (error) {
-    throw new HttpError(BAD_REQUEST_STATUS, getMessageFromError(error));
+    throw new HttpError(HTTP_BAD_REQUEST, getMessageFromError(error));
   }
 }
 
@@ -302,20 +302,20 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
     // Handle validation based on whether validator is an object or function
     if (typeof validator === 'function') {
       // It's a ValueAssertion (function)
-      callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, `${BAD_REQUEST_STATUS}: request body`);
+      callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, `${HTTP_BAD_REQUEST}: request body`);
     } else {
       // It's an ObjectAssertion - use validateObject
       // We strictly assume it is an object because of the type definition (function | object)
       const objectValidator = validator as ObjectAssertion<RequestBodyType>;
       const isEmptyValidator = Object.keys(objectValidator).length === 0;
-      const error = validateObject(apiRequest, objectValidator, `${BAD_REQUEST_STATUS}: request body`, {
+      const error = validateObject(apiRequest, objectValidator, `${HTTP_BAD_REQUEST}: request body`, {
         failOnUnknownFields: !isEmptyValidator,
       });
       assertTruthy(!error, error);
     }
   } catch (error) {
     if (error instanceof HttpError) throw error;
-    throw new HttpError(BAD_REQUEST_STATUS, getMessageFromError(error));
+    throw new HttpError(HTTP_BAD_REQUEST, getMessageFromError(error));
   }
 
   const requestContext = newRequestContext<RequestBodyType>(apiRequest as RequestBodyType, req, res);

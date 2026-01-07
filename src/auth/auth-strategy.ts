@@ -1,5 +1,5 @@
 import { HttpError } from '../api.types';
-import { UNAUTHORIZED_STATUS } from '../http.types';
+import { HTTP_UNAUTHORIZED } from '../http-status-codes';
 import { ExpressRequest } from '../utils/express.utils';
 import { AuthStrategy, AuthUser } from './auth.types';
 
@@ -59,7 +59,7 @@ export class BasicAuthStrategy<User extends AuthUser = AuthUser> implements Auth
   async validateCredentials({ username, password }: { username: string; password: string }): Promise<User> {
     const user = await this.verifyFn(username, password);
     if (!user) {
-      throw new HttpError(UNAUTHORIZED_STATUS, 'Invalid username or password');
+      throw new HttpError(HTTP_UNAUTHORIZED, 'Invalid username or password');
     }
     return user;
   }

@@ -1,5 +1,5 @@
 import { HttpError } from '../api.types';
-import { UNAUTHORIZED_STATUS } from '../http.types';
+import { HTTP_UNAUTHORIZED } from '../http-status-codes';
 import { ExpressRequest } from '../utils/express.utils';
 import { AuthStrategy, AuthUser } from './auth.types';
 
@@ -53,7 +53,7 @@ export class BearerAuthStrategy<User extends AuthUser = AuthUser> implements Aut
   async validateCredentials(token: string): Promise<User> {
     const user = await this.verifyFn(token);
     if (!user) {
-      throw new HttpError(UNAUTHORIZED_STATUS, 'Invalid token');
+      throw new HttpError(HTTP_UNAUTHORIZED, 'Invalid token');
     }
     return user;
   }

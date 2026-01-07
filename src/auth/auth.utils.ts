@@ -1,5 +1,5 @@
 import { HttpError } from '../api.types';
-import { UNAUTHORIZED_STATUS } from '../http.types';
+import { HTTP_UNAUTHORIZED } from '../http-status-codes';
 import { EndpointMiddleware, RequestContext } from '../router';
 import { AuthStrategy, AuthUser } from './auth.types';
 
@@ -23,7 +23,7 @@ export function createAuthMiddleware<User extends AuthUser = AuthUser>(
     // If no credentials found (and strategy returned undefined), we must deny access here.
     // In a composite strategy scenario, we might want to try the next strategy, but this helper is for a single strategy enforcement.
     if (!credentials) {
-      throw new HttpError(UNAUTHORIZED_STATUS, 'No credentials provided or invalid format');
+      throw new HttpError(HTTP_UNAUTHORIZED, 'No credentials provided or invalid format');
     }
 
     // Validate credentials and get authenticated user
@@ -54,7 +54,7 @@ export function createAuthMiddleware<User extends AuthUser = AuthUser>(
 export function getAuthUser<User extends AuthUser = AuthUser>(context: RequestContext): User {
   const user = context.authUser;
   if (!user) {
-    throw new HttpError(UNAUTHORIZED_STATUS, 'User not found in context. Did you add auth middleware?');
+    throw new HttpError(HTTP_UNAUTHORIZED, 'User not found in context. Did you add auth middleware?');
   }
   return user as User;
 }
