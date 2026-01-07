@@ -1,22 +1,20 @@
 import { assertString } from '@fishka/assertions';
+import { HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HttpError, assertHttp, catchAllMiddleware } from '../src';
 import { getTestApp, getTestRoutes, makeRequest } from './test-setup';
-import { HttpError, assertHttp, HTTP_BAD_REQUEST, HTTP_FORBIDDEN, catchAllMiddleware } from '../src';
 
 describe('Structured Error Handling', () => {
-  
   // 1. Test Validator Error -> 404
   describe('Validator Errors', () => {
-    
     it('should return 400 when URL parameter validation fails', async () => {
       const routes = getTestRoutes();
       routes.get<{ id: string }>('test-validation/:id', {
         $path: {
-          id: (v) => { 
+          id: v => {
             assertString(v);
             assertHttp(v === 'valid', HTTP_BAD_REQUEST, 'Invalid ID');
-          }
+          },
         },
-        run: async ctx => ({ id: ctx.params.get('id') })
+        run: async ctx => ({ id: ctx.params.get('id') }),
       });
 
       const response = await makeRequest('GET', '/test-validation/invalid');
@@ -28,9 +26,9 @@ describe('Structured Error Handling', () => {
       const routes = getTestRoutes();
       routes.post<{ name: string }, { success: boolean }>('test-body-validation', {
         $body: {
-          name: (v) => assertString(v, 'Name must be string')
+          name: v => assertString(v, 'Name must be string'),
         },
-        run: async () => ({ success: true })
+        run: async () => ({ success: true }),
       });
 
       // Pass invalid body (number instead of string)
@@ -42,7 +40,6 @@ describe('Structured Error Handling', () => {
 
   // 2. Test Handler Body Error -> 500
   describe('Handler Execution Errors', () => {
-    
     it('should return 500 when handler throws a regular error', async () => {
       const routes = getTestRoutes();
       routes.get('test-handler-error', async () => {
@@ -57,7 +54,10 @@ describe('Structured Error Handling', () => {
     it('should return HttpError with separate details field', async () => {
       const routes = getTestRoutes();
       routes.get('test-http-error-details', async () => {
-        throw new HttpError(HTTP_FORBIDDEN, 'Forbidden action', { reason: 'Insufficient permissions', code: 'PRO-001' });
+        throw new HttpError(HTTP_FORBIDDEN, 'Forbidden action', {
+          reason: 'Insufficient permissions',
+          code: 'PRO-001',
+        });
       });
 
       const response = await makeRequest('GET', '/test-http-error-details');
@@ -70,7 +70,7 @@ describe('Structured Error Handling', () => {
   describe('Global catchAllMiddleware', () => {
     it('should catch errors from middleware before routes', async () => {
       const app = getTestApp();
-      
+
       // Add a middleware that throws
       app.use('/test-global-error', (_req, _res, next) => {
         next(new Error('Global failure'));

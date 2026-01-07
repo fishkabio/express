@@ -1,5 +1,5 @@
 import { assertString } from '@fishka/assertions';
-import { registerUrlParameter, assertHttp, HTTP_BAD_REQUEST } from '../src';
+import { assertHttp, HTTP_BAD_REQUEST, registerUrlParameter } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
 describe('Global URL Parameters', () => {
@@ -7,14 +7,18 @@ describe('Global URL Parameters', () => {
   registerUrlParameter('orgId', {
     validator: (val: unknown) => {
       assertString(val);
-      assertHttp(typeof val === 'string' && val.startsWith('org-'), HTTP_BAD_REQUEST, 'Organization ID must start with "org-"');
-    }
+      assertHttp(
+        typeof val === 'string' && val.startsWith('org-'),
+        HTTP_BAD_REQUEST,
+        'Organization ID must start with "org-"',
+      );
+    },
   });
 
   it('should validate global parameter correctly (success)', async () => {
     const routes = getTestRoutes();
     routes.get<{ id: string }>('orgs/:orgId', async ctx => ({
-      id: ctx.params.get('orgId')
+      id: ctx.params.get('orgId'),
     }));
 
     const response = await makeRequest('GET', '/orgs/org-123');
@@ -26,7 +30,7 @@ describe('Global URL Parameters', () => {
     const routes = getTestRoutes();
     // Re-mount isn't needed strictly if app persists, but for clarity:
     routes.get<{ id: string }>('orgs-fail/:orgId', async ctx => ({
-      id: ctx.params.get('orgId')
+      id: ctx.params.get('orgId'),
     }));
 
     const response = await makeRequest('GET', '/orgs-fail/123');
@@ -37,7 +41,7 @@ describe('Global URL Parameters', () => {
   it('should apply global validation to query parameters', async () => {
     const routes = getTestRoutes();
     routes.get<{ id: string }>('search-org', async ctx => ({
-      id: ctx.query.get('orgId') || ''
+      id: ctx.query.get('orgId') || '',
     }));
 
     // Valid

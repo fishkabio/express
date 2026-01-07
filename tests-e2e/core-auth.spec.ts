@@ -4,10 +4,10 @@ import {
   BearerAuthStrategy,
   createAuthMiddleware,
   getAuthUser,
+  HTTP_INTERNAL_SERVER_ERROR,
+  HTTP_UNAUTHORIZED,
   registerUrlParameter,
   RequestContext,
-  HTTP_UNAUTHORIZED,
-  HTTP_INTERNAL_SERVER_ERROR,
 } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 

@@ -1,11 +1,11 @@
-import { configureExpressApi, resetExpressApiConfig, HTTP_INTERNAL_SERVER_ERROR } from '../src';
+import { configureExpressApi, HTTP_INTERNAL_SERVER_ERROR, resetExpressApiConfig } from '../src';
 import { getTestRoutes, makeRequest } from './test-setup';
 
 describe('Request ID Handling', () => {
   afterEach(() => {
     resetExpressApiConfig();
   });
-  
+
   it('should automatically generate a request ID if none provided', async () => {
     const routes = getTestRoutes();
     routes.get('test-auto-id', async () => ({ value: 'ok' }));
@@ -22,8 +22,8 @@ describe('Request ID Handling', () => {
     routes.get('test-header-id', async () => ({ value: 'ok' }));
 
     const customId = 'my-custom-trace-id';
-    const response = await makeRequest('GET', '/test-header-id', { 
-      headers: { 'x-request-id': customId } 
+    const response = await makeRequest('GET', '/test-header-id', {
+      headers: { 'x-request-id': customId },
     });
 
     expect(response.status).toBe(200);
@@ -38,7 +38,7 @@ describe('Request ID Handling', () => {
 
     const customId = 'error-trace-id';
     const response = await makeRequest('GET', '/test-error-id', {
-      headers: { 'x-request-id': customId }
+      headers: { 'x-request-id': customId },
     });
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
@@ -47,13 +47,13 @@ describe('Request ID Handling', () => {
 
   it('should ignore request ID from header if trustRequestIdHeader is false', async () => {
     configureExpressApi({ trustRequestIdHeader: false });
-    
+
     const routes = getTestRoutes();
     routes.get('test-untrusted-id', async () => ({ value: 'ok' }));
 
     const customId = 'untrusted-id';
-    const response = await makeRequest('GET', '/test-untrusted-id', { 
-      headers: { 'x-request-id': customId } 
+    const response = await makeRequest('GET', '/test-untrusted-id', {
+      headers: { 'x-request-id': customId },
     });
 
     expect(response.status).toBe(200);

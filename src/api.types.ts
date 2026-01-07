@@ -1,4 +1,4 @@
-import { assertString, assertTruthy, ValueAssertion } from '@fishka/assertions';
+import { assertTruthy, ValueAssertion } from '@fishka/assertions';
 import { HTTP_BAD_REQUEST } from './http-status-codes';
 
 export type UrlTokensValidator = Record<string, ValueAssertion<string>>;
@@ -16,10 +16,10 @@ export class HttpError extends Error {
 }
 
 /**
- * Asserts that a condition is true, throwing an HttpError with the specified status code if false.
+ * Asserts that the value is truthy, throwing an HttpError with the specified status code if false.
  * This function is designed for HTTP-specific validation where you want to throw appropriate HTTP status codes.
  *
- * @param condition - The condition to check. If false, an HttpError will be thrown.
+ * @param value - The condition to check. If falsy, an HttpError will be thrown.
  * @param status - The HTTP status code to use in the HttpError (e.g., 400 for Bad Request, 404 for Not Found).
  * @param message - The error message to include in the HttpError.
  *
@@ -31,7 +31,7 @@ export class HttpError extends Error {
  * assertHttp(typeof userId === 'string', HTTP_BAD_REQUEST, 'User ID must be a string');
  *
  * // Validate resource existence
- * assertHttp(user !== null, HTTP_NOT_FOUND, 'User not found');
+ * assertHttp(user, HTTP_NOT_FOUND, 'User not found');
  *
  * // Validate authorization
  * assertHttp(user.isAdmin, HTTP_FORBIDDEN, 'Admin access required');
@@ -46,8 +46,8 @@ export class HttpError extends Error {
  * @see {@link HTTP_FORBIDDEN}
  * @see {@link HTTP_UNAUTHORIZED}
  */
-export function assertHttp(condition: boolean, status: number, message: string): asserts condition {
-  assertTruthy(condition, () => new HttpError(status, message));
+export function assertHttp(value: unknown, status: number, message: string): asserts value {
+  assertTruthy(value, () => new HttpError(status, message));
 }
 
 export interface ApiResponse<ResponseEntity = unknown> {
@@ -103,9 +103,9 @@ export function registerUrlParameter(name: string, info: UrlParameterInfo): void
  * @Internal
  */
 export function assertUrlParameter(name: unknown): asserts name is string {
-  assertString(name, 'Url parameter name must be a string');
+  assertHttp(typeof name === 'string', HTTP_BAD_REQUEST, 'Url parameter name must be a string');
   assertHttp(
-    URL_PARAMETER_INFO[name] !== undefined,
+    URL_PARAMETER_INFO[name],
     HTTP_BAD_REQUEST,
     `Invalid URL parameter: '${name}'. Please register it using 'registerUrlParameter('${name}', ...)'`,
   );

@@ -1,4 +1,3 @@
-import { ExpressApplication } from './utils/express.utils';
 import {
   DeleteEndpoint,
   GetEndpoint,
@@ -13,6 +12,7 @@ import {
   RequestContext,
   ResponseOrValue,
 } from './router';
+import { ExpressApplication } from './utils/express.utils';
 
 /**
  * Helper utility for organizing and mounting routes.

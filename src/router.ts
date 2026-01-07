@@ -1,6 +1,5 @@
 import {
   Assertion,
-  assertTruthy,
   callValueAssertion,
   getMessageFromError,
   ObjectAssertion,
@@ -8,10 +7,10 @@ import {
   ValueAssertion,
 } from '@fishka/assertions';
 import * as url from 'url';
-import { ApiResponse, HttpError, URL_PARAMETER_INFO, UrlTokensValidator, assertHttp } from './api.types';
-import { HTTP_BAD_REQUEST, HTTP_OK } from './http-status-codes';
+import { ApiResponse, assertHttp, HttpError, URL_PARAMETER_INFO, UrlTokensValidator } from './api.types';
 import { AuthUser } from './auth/auth.types';
 import { catchRouteErrors } from './error-handling';
+import { HTTP_BAD_REQUEST, HTTP_OK } from './http-status-codes';
 import { getRequestLocalStorage } from './thread-local/thread-local-storage';
 import { wrapAsApiResponse } from './utils/conversion.utils';
 import { ExpressApplication, ExpressRequest, ExpressResponse } from './utils/express.utils';
@@ -181,17 +180,18 @@ function createRouteHandler(
         result = await executeGetEndpoint(endpoint as GetEndpoint, req, res);
         break;
     }
-        const response = wrapAsApiResponse(result);
-        
-        const tls = getRequestLocalStorage();
-        if (tls?.requestId) {
-          response.requestId = tls.requestId;
-        }
-    
-        response.status = response.status || HTTP_OK;
-        res.status(response.status);
-        res.send(response);
-      };}
+    const response = wrapAsApiResponse(result);
+
+    const tls = getRequestLocalStorage();
+    if (tls?.requestId) {
+      response.requestId = tls.requestId;
+    }
+
+    response.status = response.status || HTTP_OK;
+    res.status(response.status);
+    res.send(response);
+  };
+}
 
 /**
  * @Internal
@@ -366,7 +366,7 @@ function newRequestContext<RequestBodyType>(
     params: {
       get: (key: string): string => {
         const value = req.params[key];
-        assertTruthy(value, `Path parameter '${key}' not found`);
+        assertHttp(value, HTTP_BAD_REQUEST, `Path parameter '${key}' not found`);
         return value;
       },
       tryGet: (key: string): string | undefined => req.params[key],
