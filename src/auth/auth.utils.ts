@@ -1,7 +1,7 @@
-import { EndpointMiddleware, RequestContext } from '../router/router';
+import { HttpError } from '../api.types';
+import { UNAUTHORIZED_STATUS } from '../http.types';
+import { EndpointMiddleware, RequestContext } from '../router';
 import { AuthStrategy, AuthUser } from './auth.types';
-import { HttpError } from '../utils/http-error';
-import { UNAUTHORIZED_STATUS } from '../utils/common';
 
 /**
  * Creates a middleware that enforces authentication using the provided strategy.

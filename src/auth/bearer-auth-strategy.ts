@@ -1,7 +1,7 @@
+import { HttpError } from '../api.types';
+import { UNAUTHORIZED_STATUS } from '../http.types';
 import { ExpressRequest } from '../utils/express.utils';
 import { AuthStrategy, AuthUser } from './auth.types';
-import { HttpError } from '../utils/http-error';
-import { UNAUTHORIZED_STATUS } from '../utils/common';
 
 /**
  * Bearer authentication strategy (commonly used for JWTs).

@@ -2,19 +2,19 @@ import {
   Assertion,
   assertTruthy,
   callValueAssertion,
+  getMessageFromError,
   ObjectAssertion,
   validateObject,
   ValueAssertion,
 } from '@fishka/assertions';
 import * as url from 'url';
-import { catchRouteErrors } from '../middleware/catch-all.middleware';
-import { ApiResponse, UrlTokensValidator } from '../protocol/api.types';
-import { URL_PARAMETER_INFO } from '../protocol/url-parameters';
-import { AuthUser } from '../auth/auth.types';
-import { HttpError } from '../utils/http-error';
-import { wrapAsApiResponse } from '../utils/conversion';
-import { getRequestLocalStorage } from '../thread-local-storage/thread-local-storage';
-import { ExpressApplication, ExpressRequest, ExpressResponse } from '../utils/express.utils';
+import { ApiResponse, HttpError, URL_PARAMETER_INFO, UrlTokensValidator } from './api.types';
+import { BAD_REQUEST_STATUS, OK_STATUS } from './http.types';
+import { AuthUser } from './auth/auth.types';
+import { catchRouteErrors } from './error-handling';
+import { getRequestLocalStorage } from './thread-local/thread-local-storage';
+import { wrapAsApiResponse } from './utils/conversion.utils';
+import { ExpressApplication, ExpressRequest, ExpressResponse } from './utils/express.utils';
 
 /** Express API allows handlers to return response in the raw form. */
 export type ResponseOrValue<ResponseEntity> = ApiResponse<ResponseEntity> | ResponseEntity;
@@ -181,18 +181,17 @@ function createRouteHandler(
         result = await executeGetEndpoint(endpoint as GetEndpoint, req, res);
         break;
     }
-    const response = wrapAsApiResponse(result);
+        const response = wrapAsApiResponse(result);
+        
+        const tls = getRequestLocalStorage();
+        if (tls?.requestId) {
+          response.requestId = tls.requestId;
+        }
     
-    const tls = getRequestLocalStorage();
-    if (tls?.requestId) {
-      response.requestId = tls.requestId;
-    }
-
-    response.status = response.status || 200;
-    res.status(response.status);
-    res.send(response);
-  };
-}
+        response.status = response.status || OK_STATUS;
+        res.status(response.status);
+        res.send(response);
+      };}
 
 /**
  * @Internal
@@ -215,13 +214,13 @@ function validateUrlParameters(
       // Run Global Validation if registered.
       const globalValidator = URL_PARAMETER_INFO[key]?.validator;
       if (globalValidator) {
-        callValueAssertion(value, globalValidator, '400');
+        callValueAssertion(value, globalValidator, `${BAD_REQUEST_STATUS}`);
       }
 
       // Run Local Validation.
       const validator = $path?.[key];
       if (validator) {
-        callValueAssertion(value, validator, '400');
+        callValueAssertion(value, validator, `${BAD_REQUEST_STATUS}`);
       }
     }
 
@@ -235,16 +234,16 @@ function validateUrlParameters(
         // Query params can be string | string[] | undefined. Global validators usually expect string.
         // We only validate if it's a single value or handle array in validator.
         // For simplicity, we pass value as is (unknown) to assertion.
-        callValueAssertion(value, globalValidator as ValueAssertion<unknown>, '400');
+        callValueAssertion(value, globalValidator as ValueAssertion<unknown>, `${BAD_REQUEST_STATUS}`);
       }
 
       const validator = $query?.[key];
       if (validator) {
-        callValueAssertion(value, validator, '400');
+        callValueAssertion(value, validator, `${BAD_REQUEST_STATUS}`);
       }
     }
   } catch (error) {
-    throw new HttpError(400, (error as Error).message);
+    throw new HttpError(BAD_REQUEST_STATUS, getMessageFromError(error));
   }
 }
 
@@ -303,20 +302,20 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
     // Handle validation based on whether validator is an object or function
     if (typeof validator === 'function') {
       // It's a ValueAssertion (function)
-      callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, '400: request body');
+      callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, `${BAD_REQUEST_STATUS}: request body`);
     } else {
       // It's an ObjectAssertion - use validateObject
       // We strictly assume it is an object because of the type definition (function | object)
       const objectValidator = validator as ObjectAssertion<RequestBodyType>;
       const isEmptyValidator = Object.keys(objectValidator).length === 0;
-      const error = validateObject(apiRequest, objectValidator, '400: request body', {
+      const error = validateObject(apiRequest, objectValidator, `${BAD_REQUEST_STATUS}: request body`, {
         failOnUnknownFields: !isEmptyValidator,
       });
       assertTruthy(!error, error);
     }
   } catch (error) {
     if (error instanceof HttpError) throw error;
-    throw new HttpError(400, (error as Error).message);
+    throw new HttpError(BAD_REQUEST_STATUS, getMessageFromError(error));
   }
 
   const requestContext = newRequestContext<RequestBodyType>(apiRequest as RequestBodyType, req, res);

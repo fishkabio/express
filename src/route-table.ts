@@ -1,4 +1,4 @@
-import { ExpressApplication } from '../utils/express.utils';
+import { ExpressApplication } from './utils/express.utils';
 import {
   DeleteEndpoint,
   GetEndpoint,

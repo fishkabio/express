@@ -6,6 +6,8 @@ import {
   getAuthUser,
   registerUrlParameter,
   RequestContext,
+  UNAUTHORIZED_STATUS,
+  INTERNAL_ERROR_STATUS,
 } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
@@ -119,7 +121,7 @@ describe('Core + Auth E2E Integration', () => {
       });
 
       const response = await makeRequest('GET', '/protected');
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(UNAUTHORIZED_STATUS);
     });
 
     it('should allow request with valid credentials', async () => {
@@ -177,7 +179,7 @@ describe('Core + Auth E2E Integration', () => {
       const response = await makeRequest('GET', '/bearer-invalid', {
         headers: { Authorization: 'Bearer invalid' },
       });
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(UNAUTHORIZED_STATUS);
     });
   });
 
@@ -296,7 +298,7 @@ describe('Core + Auth E2E Integration', () => {
 
       // Invalid request
       const invalidResponse = await makeRequest('GET', '/short-validate/abc');
-      expect(invalidResponse.status).toBe(500);
+      expect(invalidResponse.status).toBe(INTERNAL_ERROR_STATUS);
       const errorBody = invalidResponse.body as { error: string };
       expect(errorBody.error).toContain('ID must be at least 5 characters');
     });

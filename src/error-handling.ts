@@ -1,10 +1,10 @@
+import { getMessageFromError } from '@fishka/assertions';
 import { NextFunction } from 'express';
-import { ApiResponse } from '../protocol/api.types';
-import { INTERNAL_ERROR_STATUS, BAD_REQUEST_STATUS } from '../utils/common';
-import { wrapAsApiResponse } from '../utils/conversion';
-import { ExpressFunction, ExpressRequest, ExpressResponse } from '../utils/express.utils';
-import { HttpError } from '../utils/http-error';
-import { getRequestLocalStorage } from '../thread-local-storage/thread-local-storage';
+import { ApiResponse, HttpError } from './api.types';
+import { BAD_REQUEST_STATUS, INTERNAL_ERROR_STATUS } from './http.types';
+import { getRequestLocalStorage } from './thread-local/thread-local-storage';
+import { wrapAsApiResponse } from './utils/conversion.utils';
+import { ExpressFunction, ExpressRequest, ExpressResponse } from './utils/express.utils';
 
 function buildApiResponse(error: unknown): ApiResponse & { status: number } {
   const tls = getRequestLocalStorage();
@@ -12,20 +12,18 @@ function buildApiResponse(error: unknown): ApiResponse & { status: number } {
   let response: ApiResponse & { status: number };
 
   if (error instanceof HttpError) {
-    response = { 
-      ...wrapAsApiResponse(undefined), 
-      error: error.message, 
+    response = {
+      ...wrapAsApiResponse(undefined),
+      error: error.message,
       status: error.status,
-      details: error.details
+      details: error.details,
     };
   } else {
-    const errorMessage =
-      typeof error === 'object' ? (error as Error).message : typeof error === 'string' ? error : undefined;
-    
-    response = { 
-      ...wrapAsApiResponse(undefined), 
-      error: errorMessage && errorMessage.length > 0 ? errorMessage : 'Internal error', 
-      status: INTERNAL_ERROR_STATUS 
+    const errorMessage = getMessageFromError(error, '');
+    response = {
+      ...wrapAsApiResponse(undefined),
+      error: errorMessage && errorMessage.length > 0 ? errorMessage : 'Internal error',
+      status: INTERNAL_ERROR_STATUS,
     };
   }
 
@@ -42,7 +40,7 @@ export function catchRouteErrors(fn: ExpressFunction): ExpressFunction {
       await fn(req, res, next);
     } catch (error) {
       const apiResponse = buildApiResponse(error);
-      if (apiResponse.status >= 500) {
+      if (apiResponse.status >= INTERNAL_ERROR_STATUS) {
         console.error(`catchRouteErrors: ${req.path}`, error);
       } else {
         console.log(`catchRouteErrors: ${req.path}`, error);
@@ -68,7 +66,7 @@ export async function catchAllMiddleware(
     return;
   }
   // Report as critical. This kind of error should never happen.
-  console.error('catchAllMiddleware:', (error as Error).message || typeof error);
+  console.error('catchAllMiddleware:', getMessageFromError(error));
   const apiResponse =
     error instanceof SyntaxError // JSON body parsing error.
       ? buildApiResponse(`${BAD_REQUEST_STATUS}: Failed to parse request: ${error.message}`)

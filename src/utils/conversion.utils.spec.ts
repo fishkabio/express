@@ -1,5 +1,5 @@
-import { ApiResponse } from '../protocol/api.types';
-import { toApiDateString, wrapAsApiResponse } from './conversion';
+import { ApiResponse } from '../api.types';
+import { toApiDateString, wrapAsApiResponse } from './conversion.utils';
 
 describe('conversion.utils', () => {
   describe('toDateString', () => {

@@ -1,4 +1,4 @@
-import { ApiResponse } from '../protocol/api.types';
+import { ApiResponse } from '../api.types';
 
 /**
  * Converts JS timestamp or date to ISO 8601 format (without milliseconds).

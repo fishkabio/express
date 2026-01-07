@@ -1,6 +1,6 @@
 import { assertString } from '@fishka/assertions';
 import { getTestRoutes, makeRequest } from './test-setup';
-import { HttpError } from '../src';
+import { HttpError, FORBIDDEN_STATUS } from '../src';
 
 describe('Structured Error Handling', () => {
   
@@ -58,11 +58,11 @@ describe('Structured Error Handling', () => {
     it('should return HttpError with separate details field', async () => {
       const routes = getTestRoutes();
       routes.get('test-http-error-details', async () => {
-        throw new HttpError(403, 'Forbidden action', { reason: 'Insufficient permissions', code: 'PRO-001' });
+        throw new HttpError(FORBIDDEN_STATUS, 'Forbidden action', { reason: 'Insufficient permissions', code: 'PRO-001' });
       });
 
       const response = await makeRequest('GET', '/test-http-error-details');
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(FORBIDDEN_STATUS);
       expect(response.body?.error).toBe('Forbidden action');
       expect(response.body?.details).toEqual({ reason: 'Insufficient permissions', code: 'PRO-001' });
     });

@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
 import { NextFunction } from 'express';
+import { getExpressApiConfig } from '../config';
 import { ExpressFunction, ExpressRequest, ExpressResponse } from '../utils/express.utils';
 import { runWithRequestTlsData } from './thread-local-storage';
-import { getExpressApiConfig } from '../config/config';
 
 /**
  * Creates middleware that initializes thread-local storage for each request.
@@ -15,11 +15,11 @@ export function createTlsMiddleware(): ExpressFunction {
   return async (req: ExpressRequest, _res: ExpressResponse, next: NextFunction): Promise<void> => {
     const config = getExpressApiConfig();
     const headerId = config.trustRequestIdHeader ? req.headers['x-request-id'] : undefined;
-    const existingId = (req as any).requestId || headerId;
+    const existingId = (req as { requestId?: unknown }).requestId || headerId;
     const requestId = typeof existingId === 'string' ? existingId : randomUUID();
 
     // Run the next handler within the TLS context
-    runWithRequestTlsData(
+    await runWithRequestTlsData(
       {
         requestId,
       },

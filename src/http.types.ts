@@ -27,3 +27,15 @@ export const FORBIDDEN_STATUS = 403;
  * @Internal
  */
 export const NOT_FOUND_STATUS = 404;
+
+/**
+ * Common HTTP status codes as numbers.
+ * @Internal
+ */
+export const OK_STATUS = 200;
+
+/**
+ * Common HTTP status codes as numbers.
+ * @Internal
+ */
+export const TOO_MANY_REQUESTS_STATUS = 429;
