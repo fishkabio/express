@@ -4,25 +4,35 @@ import { INTERNAL_ERROR_STATUS, BAD_REQUEST_STATUS } from '../utils/common';
 import { wrapAsApiResponse } from '../utils/conversion';
 import { ExpressFunction, ExpressRequest, ExpressResponse } from '../utils/express.utils';
 import { HttpError } from '../utils/http-error';
+import { getRequestLocalStorage } from '../thread-local-storage/thread-local-storage';
 
 function buildApiResponse(error: unknown): ApiResponse & { status: number } {
+  const tls = getRequestLocalStorage();
+  const requestId = tls?.requestId;
+  let response: ApiResponse & { status: number };
+
   if (error instanceof HttpError) {
-    return { 
+    response = { 
       ...wrapAsApiResponse(undefined), 
       error: error.message, 
       status: error.status,
       details: error.details
     };
+  } else {
+    const errorMessage =
+      typeof error === 'object' ? (error as Error).message : typeof error === 'string' ? error : undefined;
+    
+    response = { 
+      ...wrapAsApiResponse(undefined), 
+      error: errorMessage && errorMessage.length > 0 ? errorMessage : 'Internal error', 
+      status: INTERNAL_ERROR_STATUS 
+    };
   }
 
-  const errorMessage =
-    typeof error === 'object' ? (error as Error).message : typeof error === 'string' ? error : undefined;
-  
-  return { 
-    ...wrapAsApiResponse(undefined), 
-    error: errorMessage && errorMessage.length > 0 ? errorMessage : 'Internal error', 
-    status: INTERNAL_ERROR_STATUS 
-  };
+  if (requestId) {
+    response.requestId = requestId;
+  }
+  return response;
 }
 
 /** Catches all kinds of unprocessed exceptions thrown from a single route. */

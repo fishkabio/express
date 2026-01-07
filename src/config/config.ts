@@ -1,6 +1,16 @@
-export type GlobalExpressApiConfig = Record<string, never>;
+export interface GlobalExpressApiConfig {
+  /**
+   * Whether to trust and use the request ID from the request header.
+   * If true, the middleware will look for 'x-request-id' and use it.
+   * If false, a new UUID will always be generated.
+   * Default: true
+   */
+  trustRequestIdHeader: boolean;
+}
 
-const defaultConfig: GlobalExpressApiConfig = {};
+const defaultConfig: GlobalExpressApiConfig = {
+  trustRequestIdHeader: true,
+};
 
 let currentConfig: GlobalExpressApiConfig = { ...defaultConfig };
 

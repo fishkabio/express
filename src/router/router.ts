@@ -13,6 +13,7 @@ import { URL_PARAMETER_INFO } from '../protocol/url-parameters';
 import { AuthUser } from '../auth/auth.types';
 import { HttpError } from '../utils/http-error';
 import { wrapAsApiResponse } from '../utils/conversion';
+import { getRequestLocalStorage } from '../thread-local-storage/thread-local-storage';
 import { ExpressApplication, ExpressRequest, ExpressResponse } from '../utils/express.utils';
 
 /** Express API allows handlers to return response in the raw form. */
@@ -181,6 +182,12 @@ function createRouteHandler(
         break;
     }
     const response = wrapAsApiResponse(result);
+    
+    const tls = getRequestLocalStorage();
+    if (tls?.requestId) {
+      response.requestId = tls.requestId;
+    }
+
     response.status = response.status || 200;
     res.status(response.status);
     res.send(response);

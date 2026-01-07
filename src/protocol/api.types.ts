@@ -5,7 +5,11 @@ export type UrlTokensValidator = Record<string, ValueAssertion<string>>;
 export interface ApiResponse<ResponseEntity = unknown> {
   /** Result of the call. A single entity for non-paginated ${by-id} requests or an array for list queries. */
   result: ResponseEntity;
-  /** Unique ID of the request. Added to every API response. */
+  /**
+   * Unique ID of the request.
+   * Automatically added to every API response.
+   * May be passed via 'x-request-id' header from client.
+   */
   requestId?: string;
   /**
    * Response status code. Same as HTTP response status.

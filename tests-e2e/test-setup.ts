@@ -2,7 +2,7 @@ import { assertTruthy, truthy } from '@fishka/assertions';
 import express, { Express } from 'express';
 import http from 'http';
 import { AddressInfo } from 'net';
-import { createRouteTable } from '../src';
+import { createRouteTable, createTlsMiddleware } from '../src';
 
 /**
  * Shared test server that is created once and reused across all e2e tests.
@@ -23,6 +23,7 @@ export async function initializeTestServer(): Promise<void> {
 
   const app = express();
   app.use(express.json());
+  app.use(createTlsMiddleware());
   testApp = app;
 
   await new Promise<void>(resolve => {
