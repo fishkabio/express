@@ -37,10 +37,8 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle POST requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.post('items', {
-        $body: {
-          name: v => assertString(v, '400: bad'),
-        },
+      routes.post<{ name: string }, { value: string }>('items', {
+        $body: { name: assertString },
         run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.body.name }),
       });
 

@@ -81,16 +81,16 @@ export type GetListEndpoint<ResultElementType = unknown> = EndpointBase<RequestC
 export type GetEndpoint<Result = unknown> = EndpointBase<RequestContext, Result>;
 
 /** Descriptor for POST routes. */
-export interface PostEndpoint<Body = unknown, Result = unknown> extends EndpointBase<RequestContext<Body>, Result> {
+export interface PostEndpoint<Body = unknown, Result = void> extends EndpointBase<RequestContext<Body>, Result> {
   /** Request body validator. */
   $body: Body extends object ? ObjectAssertion<Body> : Assertion<Body>;
 }
 
 /** Same as POST. Used for full object updates. */
-export type PutEndpoint<Body = unknown, Result = unknown> = PostEndpoint<Body, Result>;
+export type PutEndpoint<Body = unknown, Result = void> = PostEndpoint<Body, Result>;
 
 /** Same as PUT. While PUT is used for the whole object update, PATCH is used for a partial update. */
-export type PatchEndpoint<Body = unknown, Result = unknown> = PutEndpoint<Body, Result>;
+export type PatchEndpoint<Body = unknown, Result = void> = PutEndpoint<Body, Result>;
 
 /** Descriptor for DELETE routes. */
 export type DeleteEndpoint = EndpointBase<RequestContext, void>;
