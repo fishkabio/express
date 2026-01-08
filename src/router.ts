@@ -141,17 +141,13 @@ export const mountPut = <Body, Result>(
   endpoint: PutEndpoint<Body, Result>,
 ): void => mount(app, { method: 'put', route: endpoint as PutEndpoint, path });
 
-/**
- * Registers a DELETE route.
- */
+/** Registers a DELETE route. */
 export const mountDelete = (app: ExpressApplication, path: string, endpoint: DeleteEndpoint): void =>
   mount(app, { method: 'delete', route: endpoint, path });
 
-/**
- * Mounts a route with the given method, endpoint, and path.
- */
+/** Mounts a route with the given method, endpoint, and path. */
 export function mount(app: ExpressApplication, { method, route, path }: RouteRegistrationInfo): void {
-  const fullPath = `/${path}`;
+  const fullPath = path.startsWith('/') ? path : `/${path}`;
   const handler = createRouteHandler(method, route);
   app[method](fullPath, catchRouteErrors(handler));
 }
