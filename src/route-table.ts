@@ -12,14 +12,14 @@ import {
   RequestContext,
   ResponseOrValue,
 } from './router';
-import { ExpressApplication } from './utils/express.utils';
+import { ExpressRouter } from './utils/express.utils';
 
 /**
  * Helper utility for organizing and mounting routes.
  * Provides a fluent interface for registering multiple handlers.
  */
 export class RouteTable {
-  constructor(private readonly app: ExpressApplication) {}
+  constructor(private readonly app: ExpressRouter) {}
 
   get<T>(path: string, endpoint: GetEndpoint<T> | GetEndpoint<T[]>): this;
   get<T>(path: string, run: (ctx: RequestContext) => Promise<ResponseOrValue<T>>): this;
@@ -61,6 +61,6 @@ export class RouteTable {
  * @param app Express application instance
  * @returns RouteTable instance with fluent API
  */
-export function createRouteTable(app: ExpressApplication): RouteTable {
+export function createRouteTable(app: ExpressRouter): RouteTable {
   return new RouteTable(app);
 }

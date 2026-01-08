@@ -4,5 +4,5 @@ import express from 'express';
 export type ExpressRequest = express.Request;
 export type ExpressResponse = express.Response;
 export type ExpressNextFunction = express.NextFunction;
-export type ExpressApplication = express.Application;
+export type ExpressRouter = express.IRouter;
 export type ExpressFunction = (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => Promise<void>;
