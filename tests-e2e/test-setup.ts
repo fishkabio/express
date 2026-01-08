@@ -51,23 +51,17 @@ export async function teardownTestServer(): Promise<void> {
   }
 }
 
-/**
- * Get the shared Express app for registering routes.
- */
+/** Get the shared Express app for registering routes. */
 export function getTestApp(): Express {
   return truthy(testApp, 'Test server not initialized. Call initializeTestServer first.');
 }
 
-/**
- * Get a new route table for the shared app.
- */
+/** Get a new route table for the shared app. */
 export function getTestRoutes(): ReturnType<typeof createRouteTable> {
   return createRouteTable(getTestApp());
 }
 
-/**
- * Get the port the test server is running on.
- */
+/** Get the port the test server is running on. */
 export function getTestPort(): number {
   assertTruthy(testPort, 'Test server not initialized. Call initializeTestServer first.');
   return testPort;
@@ -92,9 +86,7 @@ export function getApiResult<T = unknown>(response: { status: number; body: Reco
   return body.result as T;
 }
 
-/**
- * Makes HTTP requests to the test server.
- */
+/** Makes HTTP requests to the test server. */
 export function makeRequest(
   method: string,
   path: string,

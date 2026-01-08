@@ -15,7 +15,7 @@ import { getRequestLocalStorage } from './thread-local/thread-local-storage';
 import { wrapAsApiResponse } from './utils/conversion.utils';
 import { ExpressApplication, ExpressRequest, ExpressResponse } from './utils/express.utils';
 
-/** Express API allows handlers to return response in the raw form. */
+/** Express API allows handlers to return a response in the raw form. */
 export type ResponseOrValue<ResponseEntity> = ApiResponse<ResponseEntity> | ResponseEntity;
 
 /**
@@ -48,9 +48,7 @@ export interface RequestContext<Body = void> {
     tryGet(key: string): string | undefined;
   };
 
-  /**
-   * Query parameter access.
-   */
+  /** Query parameter access. */
   query: {
     get(key: string): string | undefined;
   };
@@ -108,33 +106,25 @@ export type RouteRegistrationInfo = (
 // Internal implementation details
 // ============================================================================
 
-/**
- * Registers a GET route.
- */
+/** Registers a GET route. */
 export const mountGet = (app: ExpressApplication, path: string, endpoint: GetEndpoint | GetListEndpoint): void =>
   mount(app, { method: 'get', route: endpoint, path });
 
-/**
- * Registers a POST route.
- */
+/** Registers a POST route. */
 export const mountPost = <Body, Result>(
   app: ExpressApplication,
   path: string,
   endpoint: PostEndpoint<Body, Result>,
 ): void => mount(app, { method: 'post', route: endpoint as PostEndpoint, path });
 
-/**
- * Registers a PATCH route.
- */
+/** Registers a PATCH route. */
 export const mountPatch = <Body, Result>(
   app: ExpressApplication,
   path: string,
   endpoint: PatchEndpoint<Body, Result>,
 ): void => mount(app, { method: 'patch', route: endpoint as PatchEndpoint, path });
 
-/**
- * Registers a PUT route.
- */
+/** Registers a PUT route. */
 export const mountPut = <Body, Result>(
   app: ExpressApplication,
   path: string,
@@ -295,7 +285,7 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
   const apiRequest = req.body;
 
   try {
-    // Handle validation based on whether validator is an object or function
+    // Handle validation based on whether the validator is an object or function
     if (typeof validator === 'function') {
       // It's a ValueAssertion (function)
       callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, `${HTTP_BAD_REQUEST}: request body`);
@@ -328,7 +318,7 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
 
 /**
  * @Internal
- * Executes handler with middleware chain.
+ * Executes handler with a middleware chain.
  */
 async function executeWithMiddleware<Context, Result>(
   run: () => Promise<ResponseOrValue<Result>>,
