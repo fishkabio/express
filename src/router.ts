@@ -73,32 +73,32 @@ export interface EndpointBase<Context = RequestContext, Result = unknown> {
 }
 
 /** Descriptor for GET list routes. */
-export type GetListEndpoint<ResultElementType = unknown> = EndpointBase<RequestContext, Array<ResultElementType>>;
+export type GetListEndpoint<ResultElementType> = EndpointBase<RequestContext, Array<ResultElementType>>;
 
 /** Descriptor for GET routes. */
-export type GetEndpoint<Result = unknown> = EndpointBase<RequestContext, Result>;
+export type GetEndpoint<Result> = EndpointBase<RequestContext, Result>;
 
 /** Descriptor for POST routes. */
-export interface PostEndpoint<Body = unknown, Result = void> extends EndpointBase<RequestContext<Body>, Result> {
+export interface PostEndpoint<Body, Result = void> extends EndpointBase<RequestContext<Body>, Result> {
   /** Request body validator. */
   $body: Body extends object ? ObjectAssertion<Body> : Assertion<Body>;
 }
 
 /** Same as POST. Used for full object updates. */
-export type PutEndpoint<Body = unknown, Result = void> = PostEndpoint<Body, Result>;
+export type PutEndpoint<Body, Result = void> = PostEndpoint<Body, Result>;
 
 /** Same as PUT. While PUT is used for the whole object update, PATCH is used for a partial update. */
-export type PatchEndpoint<Body = unknown, Result = void> = PutEndpoint<Body, Result>;
+export type PatchEndpoint<Body, Result = void> = PutEndpoint<Body, Result>;
 
 /** Descriptor for DELETE routes. */
 export type DeleteEndpoint = EndpointBase<RequestContext, void>;
 
 /** Union type for all route registration info objects. */
 export type RouteRegistrationInfo = (
-  | { method: 'get'; route: GetEndpoint | GetListEndpoint }
-  | { method: 'post'; route: PostEndpoint }
-  | { method: 'patch'; route: PatchEndpoint }
-  | { method: 'put'; route: PutEndpoint }
+  | { method: 'get'; route: GetEndpoint<unknown> | GetListEndpoint<unknown> }
+  | { method: 'post'; route: PostEndpoint<unknown> }
+  | { method: 'patch'; route: PatchEndpoint<unknown> }
+  | { method: 'put'; route: PutEndpoint<unknown> }
   | { method: 'delete'; route: DeleteEndpoint }
 ) & { path: string };
 
@@ -107,23 +107,26 @@ export type RouteRegistrationInfo = (
 // ============================================================================
 
 /** Registers a GET route. */
-export const mountGet = (app: ExpressRouter, path: string, endpoint: GetEndpoint | GetListEndpoint): void =>
-  mount(app, { method: 'get', route: endpoint, path });
+export const mountGet = (
+  app: ExpressRouter,
+  path: string,
+  endpoint: GetEndpoint<unknown> | GetListEndpoint<unknown>,
+): void => mount(app, { method: 'get', route: endpoint, path });
 
 /** Registers a POST route. */
 export const mountPost = <Body, Result>(app: ExpressRouter, path: string, endpoint: PostEndpoint<Body, Result>): void =>
-  mount(app, { method: 'post', route: endpoint as PostEndpoint, path });
+  mount(app, { method: 'post', route: endpoint as PostEndpoint<unknown>, path });
 
 /** Registers a PATCH route. */
 export const mountPatch = <Body, Result>(
   app: ExpressRouter,
   path: string,
   endpoint: PatchEndpoint<Body, Result>,
-): void => mount(app, { method: 'patch', route: endpoint as PatchEndpoint, path });
+): void => mount(app, { method: 'patch', route: endpoint as PatchEndpoint<unknown>, path });
 
 /** Registers a PUT route. */
 export const mountPut = <Body, Result>(app: ExpressRouter, path: string, endpoint: PutEndpoint<Body, Result>): void =>
-  mount(app, { method: 'put', route: endpoint as PutEndpoint, path });
+  mount(app, { method: 'put', route: endpoint as PutEndpoint<unknown>, path });
 
 /** Registers a DELETE route. */
 export const mountDelete = (app: ExpressRouter, path: string, endpoint: DeleteEndpoint): void =>
@@ -142,7 +145,13 @@ export function mount(app: ExpressRouter, { method, route, path }: RouteRegistra
  */
 function createRouteHandler(
   method: RouteRegistrationInfo['method'],
-  endpoint: GetEndpoint | GetListEndpoint | PostEndpoint | PutEndpoint | PatchEndpoint | DeleteEndpoint,
+  endpoint:
+    | GetEndpoint<unknown>
+    | GetListEndpoint<unknown>
+    | PostEndpoint<unknown>
+    | PutEndpoint<unknown>
+    | PatchEndpoint<unknown>
+    | DeleteEndpoint,
 ) {
   return async (req: ExpressRequest, res: ExpressResponse, _next: unknown): Promise<void> => {
     let result: ResponseOrValue<unknown>;
@@ -151,13 +160,13 @@ function createRouteHandler(
       case 'post':
       case 'put':
       case 'patch':
-        result = await executeBodyEndpoint(endpoint as PostEndpoint, req, res);
+        result = await executeBodyEndpoint(endpoint as PostEndpoint<unknown>, req, res);
         break;
       case 'delete':
         result = await executeDeleteEndpoint(endpoint as DeleteEndpoint, req, res);
         break;
       case 'get':
-        result = await executeGetEndpoint(endpoint as GetEndpoint, req, res);
+        result = await executeGetEndpoint(endpoint as GetEndpoint<unknown>, req, res);
         break;
     }
     const response = wrapAsApiResponse(result);
