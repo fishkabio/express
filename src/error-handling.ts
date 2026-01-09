@@ -69,7 +69,7 @@ export async function catchAllMiddleware(
   console.error('catchAllMiddleware:', getMessageFromError(error));
   const apiResponse =
     error instanceof SyntaxError // JSON body parsing error.
-      ? buildApiResponse(`${HTTP_BAD_REQUEST}: Failed to parse request: ${error.message}`)
+      ? buildApiResponse(new HttpError(HTTP_BAD_REQUEST, `Failed to parse request: ${error.message}`))
       : buildApiResponse(error);
   res.status(apiResponse.status);
   res.send(apiResponse);

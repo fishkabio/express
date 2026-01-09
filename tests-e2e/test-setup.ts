@@ -132,3 +132,50 @@ export function makeRequest(
     req.end();
   });
 }
+
+/** Makes HTTP requests with raw string body (for testing malformed JSON, etc). */
+export function makeRawRequest(
+  method: string,
+  path: string,
+  options?: { rawBody?: string; headers?: Record<string, string> },
+): Promise<{ status: number; body: Record<string, unknown> | undefined; headers: Record<string, string | string[]> }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        method,
+        hostname: '127.0.0.1',
+        port: getTestPort(),
+        path,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      },
+      res => {
+        let data = '';
+        res.on('data', chunk => (data += chunk));
+        res.on('end', () => {
+          let parsedBody: Record<string, unknown> | undefined;
+          try {
+            parsedBody = data ? JSON.parse(data) : undefined;
+          } catch {
+            parsedBody = { raw: data };
+          }
+          resolve({
+            status: res.statusCode || HTTP_INTERNAL_SERVER_ERROR,
+            body: parsedBody,
+            headers: res.headers as Record<string, string | string[]>,
+          });
+        });
+      },
+    );
+
+    req.on('error', reject);
+
+    if (options?.rawBody) {
+      req.write(options.rawBody);
+    }
+
+    req.end();
+  });
+}
