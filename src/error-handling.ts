@@ -109,29 +109,47 @@ export async function catchAllMiddleware(
   res.send(apiResponse);
 }
 
-/** Options for installProcessErrorHandlers(). */
-export interface ProcessErrorHandlerOptions {
+/** Options for installProcessHandlers(). */
+export interface ProcessHandlersOptions {
   /** Custom handler for uncaught exceptions. Called before default logging. */
   onUncaughtException?: (error: Error) => void;
   /** Custom handler for unhandled promise rejections. Called before default logging. */
   onUnhandledRejection?: (reason: unknown) => void;
+  /** Async cleanup function called on shutdown signals. */
+  onShutdown?: () => Promise<void>;
+  /** Force exit timeout in ms if shutdown hangs. Default: 10000 */
+  shutdownTimeout?: number;
+  /** Signals to handle for graceful shutdown. Default: ['SIGTERM', 'SIGINT'] */
+  shutdownSignals?: NodeJS.Signals[];
 }
 
 /**
- * Installs process-level error handlers to prevent server crashes from unhandled errors.
+ * Installs process-level handlers for errors and graceful shutdown.
  * Call once at application startup, before app.listen().
  *
- * Catches:
+ * Error handling:
  * - Uncaught exceptions (sync throws outside Express middleware)
  * - Unhandled promise rejections (forgotten await, missing .catch())
  *
+ * Graceful shutdown:
+ * - SIGTERM (Docker/K8s/systemd stop)
+ * - SIGINT (Ctrl+C)
+ * - Timeout protection (force exit if shutdown hangs)
+ * - Double-shutdown prevention
+ *
  * @example
- * installProcessErrorHandlers({
+ * installProcessHandlers({
  *   onUncaughtException: (error) => sendToMonitoring(error),
  *   onUnhandledRejection: (reason) => sendToMonitoring(reason),
+ *   onShutdown: async () => {
+ *     await database.close();
+ *     await server.close();
+ *   },
+ *   shutdownTimeout: 15000,
  * });
  */
-export function installProcessErrorHandlers(options?: ProcessErrorHandlerOptions): void {
+export function installProcessHandlers(options?: ProcessHandlersOptions): void {
+  // Error handlers
   process.on('uncaughtException', (error: Error) => {
     options?.onUncaughtException?.(error);
     console.error('CRITICAL - Uncaught Exception:', error);
@@ -141,4 +159,37 @@ export function installProcessErrorHandlers(options?: ProcessErrorHandlerOptions
     options?.onUnhandledRejection?.(reason);
     console.error('CRITICAL - Unhandled Rejection:', reason);
   });
+
+  // Graceful shutdown
+  const onShutdown = options?.onShutdown;
+  if (onShutdown) {
+    let isShuttingDown = false;
+    const signals = options?.shutdownSignals ?? ['SIGTERM', 'SIGINT'];
+    const timeout = options?.shutdownTimeout ?? 10000;
+
+    const shutdown = async (signal: string): Promise<void> => {
+      if (isShuttingDown) return;
+      isShuttingDown = true;
+      console.log(`${signal} received, shutting down gracefully...`);
+
+      const timer = setTimeout(() => {
+        console.error('Shutdown timeout, forcing exit');
+        process.exit(1);
+      }, timeout);
+
+      try {
+        await onShutdown();
+        clearTimeout(timer);
+        process.exit(0);
+      } catch (err) {
+        console.error('Shutdown error:', err);
+        clearTimeout(timer);
+        process.exit(1);
+      }
+    };
+
+    for (const signal of signals) {
+      process.on(signal, () => shutdown(signal));
+    }
+  }
 }

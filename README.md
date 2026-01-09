@@ -141,6 +141,27 @@ app.use(catchAllMiddleware);
 app.listen(3000);
 ```
 
+## Process Handlers
+
+Handle uncaught errors and graceful shutdown in one place:
+
+```typescript
+import { installProcessHandlers } from '@fishka/express';
+
+installProcessHandlers({
+  // Error handlers
+  onUncaughtException: (err) => sendToMonitoring(err),
+  onUnhandledRejection: (reason) => sendToMonitoring(reason),
+
+  // Graceful shutdown
+  onShutdown: async () => {
+    await database.close();
+    await server.close();
+  },
+  shutdownTimeout: 15000, // Force exit after 15s (default: 10s)
+});
+```
+
 ## License
 
 MIT
