@@ -150,8 +150,8 @@ import { installProcessHandlers } from '@fishka/express';
 
 installProcessHandlers({
   // Error handlers
-  onUncaughtException: (err) => sendToMonitoring(err),
-  onUnhandledRejection: (reason) => sendToMonitoring(reason),
+  onUncaughtException: err => sendToMonitoring(err),
+  onUnhandledRejection: reason => sendToMonitoring(reason),
 
   // Graceful shutdown
   onShutdown: async () => {

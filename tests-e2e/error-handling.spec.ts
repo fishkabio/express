@@ -212,9 +212,7 @@ describe('Structured Error Handling', () => {
       app.use(catchAllMiddleware);
 
       // Fire multiple requests concurrently
-      const promises = Array.from({ length: 5 }, () =>
-        makeRequest('GET', '/test-concurrent-errors'),
-      );
+      const promises = Array.from({ length: 5 }, () => makeRequest('GET', '/test-concurrent-errors'));
 
       const responses = await Promise.all(promises);
 

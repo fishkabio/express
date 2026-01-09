@@ -22,10 +22,13 @@ export class RouteTable {
   constructor(private readonly app: ExpressRouter) {}
 
   get<T>(path: string, endpoint: GetEndpoint<T> | GetEndpoint<T[]>): this;
-  get<T>(path: string, run: (ctx: RequestContext) => Promise<ResponseOrValue<T>>): this;
+  get<T>(path: string, run: (ctx: RequestContext) => ResponseOrValue<T> | Promise<ResponseOrValue<T>>): this;
   get<T>(
     path: string,
-    endpointOrRun: GetEndpoint<T> | GetEndpoint<T[]> | ((ctx: RequestContext) => Promise<ResponseOrValue<T>>),
+    endpointOrRun:
+      | GetEndpoint<T>
+      | GetEndpoint<T[]>
+      | ((ctx: RequestContext) => ResponseOrValue<T> | Promise<ResponseOrValue<T>>),
   ): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
     mountGet(this.app, path, endpoint as GetEndpoint<T>);
@@ -48,8 +51,8 @@ export class RouteTable {
   }
 
   delete(path: string, endpoint: DeleteEndpoint): this;
-  delete(path: string, run: (ctx: RequestContext) => Promise<void>): this;
-  delete(path: string, endpointOrRun: DeleteEndpoint | ((ctx: RequestContext) => Promise<void>)): this {
+  delete(path: string, run: (ctx: RequestContext) => void | Promise<void>): this;
+  delete(path: string, endpointOrRun: DeleteEndpoint | ((ctx: RequestContext) => void | Promise<void>)): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
     mountDelete(this.app, path, endpoint);
     return this;

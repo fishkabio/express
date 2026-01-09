@@ -68,8 +68,8 @@ export interface EndpointBase<Context = RequestContext, Result = unknown> {
   $query?: UrlTokensValidator;
   /** Optional middleware to execute before the handler. */
   middlewares?: Array<EndpointMiddleware>;
-  /** Handler function. */
-  run: (ctx: Context) => Promise<ResponseOrValue<Result>>;
+  /** Handler function. Can be sync or async. */
+  run: (ctx: Context) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>;
 }
 
 /** Descriptor for GET list routes. */
@@ -324,7 +324,7 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
  * Executes handler with a middleware chain.
  */
 async function executeWithMiddleware<Context, Result>(
-  run: () => Promise<ResponseOrValue<Result>>,
+  run: () => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>,
   middlewares: Array<EndpointMiddleware<Context>>,
   context: Context,
 ): Promise<ResponseOrValue<Result>> {
