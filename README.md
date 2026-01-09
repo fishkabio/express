@@ -134,7 +134,8 @@ registerUrlParameter('id', {
 const routes = createRouteTable(app);
 routes.get('health', async () => ({ status: 'UP' }));
 
-// 5. Global error handler (Must be after route definitions)
+// 5. Error handler - catches middleware/parsing errors
+//    Can also be mounted per-path: app.use('/api', catchAllMiddleware)
 app.use(catchAllMiddleware);
 
 app.listen(3000);

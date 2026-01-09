@@ -95,11 +95,11 @@ export type DeleteEndpoint = EndpointBase<RequestContext, void>;
 
 /** Union type for all route registration info objects. */
 export type RouteRegistrationInfo = (
-  | { method: 'get'; route: GetEndpoint<unknown> | GetListEndpoint<unknown> }
-  | { method: 'post'; route: PostEndpoint<unknown> }
-  | { method: 'patch'; route: PatchEndpoint<unknown> }
-  | { method: 'put'; route: PutEndpoint<unknown> }
-  | { method: 'delete'; route: DeleteEndpoint }
+  | { method: 'get'; endpoint: GetEndpoint<unknown> | GetListEndpoint<unknown> }
+  | { method: 'post'; endpoint: PostEndpoint<unknown> }
+  | { method: 'patch'; endpoint: PatchEndpoint<unknown> }
+  | { method: 'put'; endpoint: PutEndpoint<unknown> }
+  | { method: 'delete'; endpoint: DeleteEndpoint }
 ) & { path: string };
 
 // ============================================================================
@@ -111,31 +111,31 @@ export const mountGet = (
   app: ExpressRouter,
   path: string,
   endpoint: GetEndpoint<unknown> | GetListEndpoint<unknown>,
-): void => mount(app, { method: 'get', route: endpoint, path });
+): void => mount(app, { method: 'get', endpoint, path });
 
 /** Registers a POST route. */
 export const mountPost = <Body, Result>(app: ExpressRouter, path: string, endpoint: PostEndpoint<Body, Result>): void =>
-  mount(app, { method: 'post', route: endpoint as PostEndpoint<unknown>, path });
+  mount(app, { method: 'post', endpoint: endpoint as PostEndpoint<unknown>, path });
 
 /** Registers a PATCH route. */
 export const mountPatch = <Body, Result>(
   app: ExpressRouter,
   path: string,
   endpoint: PatchEndpoint<Body, Result>,
-): void => mount(app, { method: 'patch', route: endpoint as PatchEndpoint<unknown>, path });
+): void => mount(app, { method: 'patch', endpoint: endpoint as PatchEndpoint<unknown>, path });
 
 /** Registers a PUT route. */
 export const mountPut = <Body, Result>(app: ExpressRouter, path: string, endpoint: PutEndpoint<Body, Result>): void =>
-  mount(app, { method: 'put', route: endpoint as PutEndpoint<unknown>, path });
+  mount(app, { method: 'put', endpoint: endpoint as PutEndpoint<unknown>, path });
 
 /** Registers a DELETE route. */
 export const mountDelete = (app: ExpressRouter, path: string, endpoint: DeleteEndpoint): void =>
-  mount(app, { method: 'delete', route: endpoint, path });
+  mount(app, { method: 'delete', endpoint, path });
 
 /** Mounts a route with the given method, endpoint, and path. */
-export function mount(app: ExpressRouter, { method, route, path }: RouteRegistrationInfo): void {
+export function mount(app: ExpressRouter, { method, endpoint, path }: RouteRegistrationInfo): void {
   const fullPath = path.startsWith('/') ? path : `/${path}`;
-  const handler = createRouteHandler(method, route);
+  const handler = createRouteHandler(method, endpoint);
   app[method](fullPath, catchRouteErrors(handler));
 }
 
