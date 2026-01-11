@@ -1,4 +1,4 @@
-import { assertString } from '@fishka/assertions';
+import { assertString, assertTruthy } from '@fishka/assertions';
 import {
   BasicAuthStrategy,
   BearerAuthStrategy,
@@ -6,12 +6,15 @@ import {
   getAuthUser,
   HTTP_INTERNAL_SERVER_ERROR,
   HTTP_UNAUTHORIZED,
-  registerUrlParameter,
+  matches,
+  min,
+  minLength,
+  param,
+  range,
   RequestContext,
+  toInt,
 } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
-
-registerUrlParameter('id', {});
 
 describe('Core + Auth E2E Integration', () => {
   describe('Core routing (top-level paths, no version)', () => {
@@ -51,7 +54,7 @@ describe('Core + Auth E2E Integration', () => {
       const routes = getTestRoutes();
       routes.put('items/:id', {
         $body: { name: assertString },
-        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.params.get('id') }),
+        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.req.params.id }),
       });
 
       const response = await makeRequest('PUT', '/items/123', { body: { name: 'Updated' } });
@@ -184,14 +187,11 @@ describe('Core + Auth E2E Integration', () => {
   describe('Parameter validation', () => {
     it('should validate path parameters with $path', async () => {
       const routes = getTestRoutes();
-      routes.get<{ id: string }>('validate-path/:id', {
+      routes.get('validate-path/:id', {
         $path: {
-          id: v => {
-            assertString(v, '400: ID must be string');
-            if (v.length < 3) throw new Error('400: ID too short');
-          },
+          id: param(minLength(3, 'ID too short')),
         },
-        run: async ctx => ({ id: ctx.params.get('id') }),
+        run: async ctx => ({ id: ctx.path.id }),
       });
 
       // Valid request
@@ -208,16 +208,11 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should validate query parameters with $query', async () => {
       const routes = getTestRoutes();
-      routes.get<{ page: number }>('validate-query', {
+      routes.get('validate-query', {
         $query: {
-          page: v => {
-            assertString(v, '400: page must be string');
-            const num = parseInt(v);
-            if (isNaN(num)) throw new Error('400: page must be a number');
-            if (num < 1) throw new Error('400: page must be >= 1');
-          },
+          page: param(toInt('page must be a number'), min(1, 'page must be >= 1')),
         },
-        run: async ctx => ({ page: parseInt(ctx.query.get('page') || '1') }),
+        run: async ctx => ({ page: ctx.query.page }),
       });
 
       // Valid request
@@ -240,24 +235,16 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should validate both path and query parameters together', async () => {
       const routes = getTestRoutes();
-      routes.get<{ id: string; limit: number }>('validate-both/:id', {
+      routes.get('validate-both/:id', {
         $path: {
-          id: v => {
-            assertString(v, '400: ID must be string');
-            if (!/^[a-z0-9]+$/.test(v)) throw new Error('400: ID must be alphanumeric');
-          },
+          id: param(matches(/^[a-z0-9]+$/, 'ID must be alphanumeric')),
         },
         $query: {
-          limit: v => {
-            assertString(v, '400: limit must be string');
-            const num = parseInt(v);
-            if (isNaN(num)) throw new Error('400: limit must be a number');
-            if (num < 1 || num > 100) throw new Error('400: limit must be between 1 and 100');
-          },
+          limit: param(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100')),
         },
         run: async ctx => ({
-          id: ctx.params.get('id'),
-          limit: parseInt(ctx.query.get('limit') || '10'),
+          id: ctx.path.id,
+          limit: ctx.query.limit,
         }),
       });
 
@@ -284,8 +271,8 @@ describe('Core + Auth E2E Integration', () => {
     it('should work with function shorthand and validation', async () => {
       const routes = getTestRoutes();
       routes.get<{ id: string }>('short-validate/:id', async ctx => {
-        const id = ctx.params.get('id');
-        if (id.length < 5) throw new Error('400: ID must be at least 5 characters');
+        const id = ctx.req.params.id!;
+        assertTruthy(id.length >= 5, 'ID must be at least 5 characters');
         return { id };
       });
 

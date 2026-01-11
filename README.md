@@ -12,56 +12,105 @@ npm install @fishka/express
 
 ```typescript
 import express from 'express';
-import { createRouteTable } from '@fishka/express';
+import { createRouteTable, param, toInt } from '@fishka/express';
+import { assertString } from '@fishka/assertions';
 
 const app = express();
 app.use(express.json());
 
 const routes = createRouteTable(app);
 
-// GET /users/:id - using function shorthand
-routes.get<{ id: string; name: string }>('users/:id', async ctx => ({
-  id: ctx.params.get('id'),
-  name: 'John',
-}));
+// GET /users/:id - with typed path params
+routes.get('users/:id', {
+  $path: { id: param(toInt()) },
+  run: async ctx => ({
+    id: ctx.path.id,  // number - typed from $path
+    name: 'John',
+  }),
+});
 
-// GET /users - using full endpoint object
-routes.get<Array<{ id: string; name: string }>>('users', async () => [
-  { id: '1', name: 'John' },
-  { id: '2', name: 'Jane' },
+// GET /users - list all users
+routes.get('users', async () => [
+  { id: 1, name: 'John' },
+  { id: 2, name: 'Jane' },
 ]);
 
-// POST /users
-routes.post<{ name: string }, { id: string }>('users', {
+// POST /users - with body validation
+routes.post<{ name: string }, { id: number }>('users', {
   $body: { name: v => assertString(v, 'name required') },
-  run: async ctx => ({ id: '1' }),
+  run: async ctx => ({ id: 1 }),
 });
 
-// DELETE /users/:id - using function shorthand
-routes.delete('users/:id', async () => {
-  // Delete user logic
-});
+// DELETE /users/:id
+routes.delete('users/:id', async () => {});
 
 app.listen(3000);
 ```
 
-## URL Parameters
+## URL Parameter Validation
 
-Global validation can be enforced for specific URL parameters (e.g., `:id`, `:orgId`) across all routes.
+Use `param()` to validate and transform path/query parameters. All operators are composable:
 
 ```typescript
-import { registerUrlParameter } from '@fishka/express';
-import { assertString, assertTruthy } from '@fishka/assertions';
+import { param, toInt, minLength, matches, min, range, oneOf } from '@fishka/express';
 
-// Register parameters with optional validation
-registerUrlParameter('orgId', {
-  validator: val => {
-    assertString(val);
-    assertTruthy(val.startsWith('org-'), 'Invalid Organization ID');
+routes.get('users/:id', {
+  $path: {
+    id: param(toInt()),                      // string → number
+  },
+  $query: {
+    page: param(toInt(), min(1)),            // number >= 1
+    limit: param(toInt(), range(1, 100)),    // number 1-100
+    sort: param(oneOf('asc', 'desc')),       // enum
+    search: param(minLength(3)),             // string min 3 chars
+  },
+  run: async ctx => ({
+    id: ctx.path.id,       // number
+    page: ctx.query.page,  // number
+    sort: ctx.query.sort,  // 'asc' | 'desc'
+  }),
+});
+```
+
+### Available Operators
+
+**Transformations (string → T):**
+- `toInt()` - parse to integer
+- `toNumber()` - parse to number
+- `toBool()` - parse 'true'/'false' to boolean
+- `oneOf('a', 'b')` - enum values
+
+**String validators:**
+- `minLength(n)` - minimum length
+- `maxLength(n)` - maximum length
+- `matches(/regex/)` - regex match
+- `trim` - trim whitespace
+- `lowercase` / `uppercase` - case transform
+
+**Number validators:**
+- `min(n)` - minimum value
+- `max(n)` - maximum value
+- `range(min, max)` - value range
+
+**Generic:**
+- `check(fn, msg)` - custom validation
+- `map(fn)` - transform value
+
+### Optional Parameters
+
+Use `optional()` to make parameters optional:
+
+```typescript
+import { optional, param, toInt } from '@fishka/express';
+
+routes.get('users', {
+  $query: {
+    page: optional(param(toInt())),  // number | undefined
+  },
+  run: async ctx => {
+    const page = ctx.query.page ?? 1;
   },
 });
-
-// Now /orgs/:orgId will automatically validate that orgId starts with 'org-'
 ```
 
 ## Authentication
@@ -110,12 +159,11 @@ assertHttp(user.isAdmin, HTTP_FORBIDDEN, 'Admin access required');
 
 ## Complete Example
 
-Here is a full initialization including TLS context, global validation, and proper error handling.
+Full initialization with TLS context, validation, and error handling:
 
 ```typescript
 import express from 'express';
-import { createRouteTable, createTlsMiddleware, catchAllMiddleware, registerUrlParameter } from '@fishka/express';
-import { assertString, assertTruthy } from '@fishka/assertions';
+import { createRouteTable, createTlsMiddleware, catchAllMiddleware, param, toInt } from '@fishka/express';
 
 const app = express();
 
@@ -125,17 +173,17 @@ app.use(express.json());
 // 2. Initialize TLS context (Request IDs, etc.)
 app.use(createTlsMiddleware());
 
-// 3. Register global URL parameters
-registerUrlParameter('id', {
-  validator: val => assertString(val),
-});
-
-// 4. Define routes
+// 3. Define routes with typed parameters
 const routes = createRouteTable(app);
+
 routes.get('health', async () => ({ status: 'UP' }));
 
-// 5. Error handler - catches middleware/parsing errors
-//    Can also be mounted per-path: app.use('/api', catchAllMiddleware)
+routes.get('users/:id', {
+  $path: { id: param(toInt()) },
+  run: async ctx => ({ id: ctx.path.id }),
+});
+
+// 4. Error handler - catches middleware/parsing errors
 app.use(catchAllMiddleware);
 
 app.listen(3000);

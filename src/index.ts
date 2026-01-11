@@ -13,3 +13,4 @@ export * from './router';
 export * from './thread-local/thread-local-storage';
 export * from './thread-local/thread-local-storage-middleware';
 export * from './utils/express.utils';
+export * from './utils/type-validators';

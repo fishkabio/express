@@ -1,13 +1,6 @@
-import {
-  Assertion,
-  callValueAssertion,
-  getMessageFromError,
-  ObjectAssertion,
-  validateObject,
-  ValueAssertion,
-} from '@fishka/assertions';
+import { Assertion, getMessageFromError, ObjectAssertion, validateObject } from '@fishka/assertions';
 import * as url from 'url';
-import { ApiResponse, assertHttp, HttpError, URL_PARAMETER_INFO, UrlTokensValidator } from './api.types';
+import { ApiResponse, assertHttp, HttpError, InferValidated, TypedValidatorMap, TypeValidator } from './api.types';
 import { AuthUser } from './auth/auth.types';
 import { catchRouteErrors } from './error-handling';
 import { HTTP_BAD_REQUEST, HTTP_OK } from './http-status-codes';
@@ -28,7 +21,11 @@ export type EndpointMiddleware<Context = RequestContext> = (
 ) => Promise<unknown>;
 
 /** Generic request context passed to all handlers. Database-agnostic and extensible. */
-export interface RequestContext<Body = void> {
+export interface RequestContext<
+  Body = void,
+  PathParams extends TypedValidatorMap = TypedValidatorMap,
+  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+> {
   /** Parsed and validated request body (for POST/PATCH/PUT handlers). */
   body: Body;
   /** Express Request object. */
@@ -39,19 +36,11 @@ export interface RequestContext<Body = void> {
   /** Authenticated user (if any). Populated by auth middleware. */
   authUser?: AuthUser;
 
-  /**
-   * Generic parameter access with lazy validation.
-   * Provides type-safe access to URL path and query parameters.
-   */
-  params: {
-    get(key: string): string;
-    tryGet(key: string): string | undefined;
-  };
+  /** Validated path parameters (typed from $path validators). */
+  path: InferValidated<PathParams>;
 
-  /** Query parameter access. */
-  query: {
-    get(key: string): string | undefined;
-  };
+  /** Validated query parameters (typed from $query validators). */
+  query: InferValidated<QueryParams>;
 
   /**
    * Generic state storage for middleware to attach data.
@@ -61,37 +50,70 @@ export interface RequestContext<Body = void> {
 }
 
 /** Base interface with common endpoint properties. */
-export interface EndpointBase<Context = RequestContext, Result = unknown> {
-  /** Path parameter validator. */
-  $path?: UrlTokensValidator;
-  /** Query parameter validator. */
-  $query?: UrlTokensValidator;
+export interface EndpointBase<
+  PathParams extends TypedValidatorMap = TypedValidatorMap,
+  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  Body = void,
+  Result = unknown,
+> {
+  /** Path parameter validators (typed). */
+  $path?: PathParams;
+  /** Query parameter validators (typed). */
+  $query?: QueryParams;
   /** Optional middleware to execute before the handler. */
   middlewares?: Array<EndpointMiddleware>;
   /** Handler function. Can be sync or async. */
-  run: (ctx: Context) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>;
+  run: (
+    ctx: RequestContext<Body, PathParams, QueryParams>,
+  ) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>;
 }
 
 /** Descriptor for GET list routes. */
-export type GetListEndpoint<ResultElementType> = EndpointBase<RequestContext, Array<ResultElementType>>;
+export type GetListEndpoint<
+  ResultElementType,
+  PathParams extends TypedValidatorMap = TypedValidatorMap,
+  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+> = EndpointBase<PathParams, QueryParams, void, Array<ResultElementType>>;
 
 /** Descriptor for GET routes. */
-export type GetEndpoint<Result> = EndpointBase<RequestContext, Result>;
+export type GetEndpoint<
+  Result,
+  PathParams extends TypedValidatorMap = TypedValidatorMap,
+  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+> = EndpointBase<PathParams, QueryParams, void, Result>;
 
 /** Descriptor for POST routes. */
-export interface PostEndpoint<Body, Result = void> extends EndpointBase<RequestContext<Body>, Result> {
+export interface PostEndpoint<
+  Body,
+  Result = void,
+  PathParams extends TypedValidatorMap = TypedValidatorMap,
+  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+> extends EndpointBase<PathParams, QueryParams, Body, Result> {
   /** Request body validator. */
   $body: Body extends object ? ObjectAssertion<Body> : Assertion<Body>;
 }
 
 /** Same as POST. Used for full object updates. */
-export type PutEndpoint<Body, Result = void> = PostEndpoint<Body, Result>;
+export type PutEndpoint<
+  Body,
+  Result = void,
+  PathParams extends TypedValidatorMap = TypedValidatorMap,
+  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+> = PostEndpoint<Body, Result, PathParams, QueryParams>;
 
 /** Same as PUT. While PUT is used for the whole object update, PATCH is used for a partial update. */
-export type PatchEndpoint<Body, Result = void> = PutEndpoint<Body, Result>;
+export type PatchEndpoint<
+  Body,
+  Result = void,
+  PathParams extends TypedValidatorMap = TypedValidatorMap,
+  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+> = PutEndpoint<Body, Result, PathParams, QueryParams>;
 
 /** Descriptor for DELETE routes. */
-export type DeleteEndpoint = EndpointBase<RequestContext, void>;
+export type DeleteEndpoint<
+  PathParams extends TypedValidatorMap = TypedValidatorMap,
+  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+> = EndpointBase<PathParams, QueryParams, void, void>;
 
 /** Union type for all route registration info objects. */
 export type RouteRegistrationInfo = (
@@ -184,56 +206,49 @@ function createRouteHandler(
 
 /**
  * @Internal
- * Validates request parameters using custom validators.
+ * Validates and builds typed path/query parameters using $path and $query validators.
  */
-function validateUrlParameters(
+function buildValidatedParams<
+  PathParams extends TypedValidatorMap | undefined,
+  QueryParams extends TypedValidatorMap | undefined,
+>(
   req: ExpressRequest,
-  {
-    $path,
-    $query,
-  }: {
-    $path?: UrlTokensValidator;
-    $query?: UrlTokensValidator;
-  },
-): void {
+  $path: PathParams,
+  $query: QueryParams,
+): {
+  path: PathParams extends TypedValidatorMap ? InferValidated<PathParams> : Record<string, never>;
+  query: QueryParams extends TypedValidatorMap ? InferValidated<QueryParams> : Record<string, never>;
+} {
+  const pathResult: Record<string, unknown> = {};
+  const queryResult: Record<string, unknown> = {};
+
   try {
-    for (const key in req.params) {
-      const value = req.params[key];
-
-      // Run Global Validation if registered.
-      const globalValidator = URL_PARAMETER_INFO[key]?.validator;
-      if (globalValidator) {
-        callValueAssertion(value, globalValidator, `${HTTP_BAD_REQUEST}`);
-      }
-
-      // Run Local Validation.
-      const validator = $path?.[key];
-      if (validator) {
-        callValueAssertion(value, validator, `${HTTP_BAD_REQUEST}`);
+    // Validate path params
+    if ($path) {
+      for (const [key, validator] of Object.entries($path)) {
+        const value = req.params[key];
+        pathResult[key] = (validator as TypeValidator<unknown>)(value);
       }
     }
 
-    const parsedUrl = url.parse(req.url, true);
-    for (const key in parsedUrl.query) {
-      const value = parsedUrl.query[key];
-
-      //  Global Validation if registered (also applies to query params if names match).
-      const globalValidator = URL_PARAMETER_INFO[key]?.validator;
-      if (globalValidator) {
-        // Query params can be string | string[] | undefined. Global validators usually expect string.
-        // We only validate if it's a single value or handle array in validator.
-        // For simplicity, we pass value as is (unknown) to assertion.
-        callValueAssertion(value, globalValidator as ValueAssertion<unknown>, `${HTTP_BAD_REQUEST}`);
-      }
-
-      const validator = $query?.[key];
-      if (validator) {
-        callValueAssertion(value, validator, `${HTTP_BAD_REQUEST}`);
+    // Validate query params
+    if ($query) {
+      const parsedUrl = url.parse(req.url, true);
+      for (const [key, validator] of Object.entries($query)) {
+        const rawValue = parsedUrl.query[key];
+        const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+        queryResult[key] = (validator as TypeValidator<unknown>)(value);
       }
     }
   } catch (error) {
+    if (error instanceof HttpError) throw error;
     throw new HttpError(HTTP_BAD_REQUEST, getMessageFromError(error));
   }
+
+  return {
+    path: pathResult as PathParams extends TypedValidatorMap ? InferValidated<PathParams> : Record<string, never>,
+    query: queryResult as QueryParams extends TypedValidatorMap ? InferValidated<QueryParams> : Record<string, never>,
+  };
 }
 
 /**
@@ -245,10 +260,10 @@ async function executeGetEndpoint<ResponseResultType>(
   req: ExpressRequest,
   res: ExpressResponse,
 ): Promise<ResponseOrValue<ResponseResultType>> {
-  const requestContext = newRequestContext<void>(undefined, req, res);
-  validateUrlParameters(req, { $path: route.$path, $query: route.$query });
+  const validated = buildValidatedParams(req, route.$path, route.$query);
+  const requestContext = newRequestContext(undefined, req, res, validated.path, validated.query);
   return await executeWithMiddleware<RequestContext, ResponseResultType>(
-    () => route.run(requestContext),
+    () => route.run(requestContext as RequestContext),
     route.middlewares || [],
     requestContext,
   );
@@ -263,10 +278,10 @@ async function executeDeleteEndpoint(
   req: ExpressRequest,
   res: ExpressResponse,
 ): Promise<ResponseOrValue<void>> {
-  const requestContext = newRequestContext<void>(undefined, req, res);
-  validateUrlParameters(req, { $path: route.$path, $query: route.$query });
+  const validated = buildValidatedParams(req, route.$path, route.$query);
+  const requestContext = newRequestContext(undefined, req, res, validated.path, validated.query);
   await executeWithMiddleware<RequestContext, void>(
-    () => route.run(requestContext),
+    () => route.run(requestContext as RequestContext),
     route.middlewares || [],
     requestContext,
   );
@@ -290,11 +305,10 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
   try {
     // Handle validation based on whether the validator is an object or function
     if (typeof validator === 'function') {
-      // It's a ValueAssertion (function)
-      callValueAssertion(apiRequest, validator as ValueAssertion<RequestBodyType>, `${HTTP_BAD_REQUEST}: request body`);
+      // It's a ValueAssertion (function) - call it directly
+      (validator as (v: unknown) => void)(apiRequest);
     } else {
       // It's an ObjectAssertion - use validateObject
-      // We strictly assume it is an object because of the type definition (function | object)
       const objectValidator = validator as ObjectAssertion<RequestBodyType>;
       const isEmptyValidator = Object.keys(objectValidator).length === 0;
       const errorMessage = validateObject(apiRequest, objectValidator, `${HTTP_BAD_REQUEST}: request body`, {
@@ -307,13 +321,11 @@ async function executeBodyEndpoint<RequestBodyType, ResponseResultType>(
     throw new HttpError(HTTP_BAD_REQUEST, getMessageFromError(error));
   }
 
-  const requestContext = newRequestContext<RequestBodyType>(apiRequest as RequestBodyType, req, res);
-  validateUrlParameters(req, { $path: route.$path, $query: route.$query });
-
-  requestContext.body = req.body;
+  const validated = buildValidatedParams(req, route.$path, route.$query);
+  const requestContext = newRequestContext(apiRequest as RequestBodyType, req, res, validated.path, validated.query);
 
   return await executeWithMiddleware<RequestContext<RequestBodyType>, ResponseResultType>(
-    () => route.run(requestContext),
+    () => route.run(requestContext as RequestContext<RequestBodyType>),
     (route.middlewares || []) as EndpointMiddleware<RequestContext<RequestBodyType>>[],
     requestContext,
   );
@@ -343,30 +355,19 @@ async function executeWithMiddleware<Context, Result>(
  * @Internal
  * Creates a new RequestContext instance.
  */
-function newRequestContext<RequestBodyType>(
-  requestBody: RequestBodyType,
+function newRequestContext<Body, PathParams extends TypedValidatorMap, QueryParams extends TypedValidatorMap>(
+  requestBody: Body,
   req: ExpressRequest,
   res: ExpressResponse,
-): RequestContext<RequestBodyType> {
+  validatedPath: InferValidated<PathParams>,
+  validatedQuery: InferValidated<QueryParams>,
+): RequestContext<Body, PathParams, QueryParams> {
   return {
     body: requestBody,
     req,
     res,
-    params: {
-      get: (key: string): string => {
-        const value = req.params[key];
-        assertHttp(value, HTTP_BAD_REQUEST, `Path parameter '${key}' not found`);
-        return value;
-      },
-      tryGet: (key: string): string | undefined => req.params[key],
-    },
-    query: {
-      get: (key: string): string | undefined => {
-        const parsedUrl = url.parse(req.url, true);
-        const value = parsedUrl.query[key];
-        return Array.isArray(value) ? value[0] : value;
-      },
-    },
+    path: validatedPath,
+    query: validatedQuery,
     state: new Map(),
   };
 }

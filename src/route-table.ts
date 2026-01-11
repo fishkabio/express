@@ -1,3 +1,4 @@
+import { TypedValidatorMap } from './api.types';
 import {
   DeleteEndpoint,
   GetEndpoint,
@@ -21,40 +22,82 @@ import { ExpressRouter } from './utils/express.utils';
 export class RouteTable {
   constructor(private readonly app: ExpressRouter) {}
 
-  get<T>(path: string, endpoint: GetEndpoint<T> | GetEndpoint<T[]>): this;
-  get<T>(path: string, run: (ctx: RequestContext) => ResponseOrValue<T> | Promise<ResponseOrValue<T>>): this;
-  get<T>(
+  /** Register GET endpoint with full type inference for path/query params. */
+  get<
+    Result,
+    PathParams extends TypedValidatorMap = TypedValidatorMap,
+    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  >(path: string, endpoint: GetEndpoint<Result, PathParams, QueryParams>): this;
+
+  /** Register GET endpoint with function shorthand. */
+  get<Result>(path: string, run: (ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>): this;
+
+  get<
+    Result,
+    PathParams extends TypedValidatorMap = TypedValidatorMap,
+    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  >(
     path: string,
     endpointOrRun:
-      | GetEndpoint<T>
-      | GetEndpoint<T[]>
-      | ((ctx: RequestContext) => ResponseOrValue<T> | Promise<ResponseOrValue<T>>),
+      | GetEndpoint<Result, PathParams, QueryParams>
+      | ((ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>),
   ): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
-    mountGet(this.app, path, endpoint as GetEndpoint<T>);
+    mountGet(this.app, path, endpoint as GetEndpoint<unknown>);
     return this;
   }
 
-  post<Body, Result>(path: string, endpoint: PostEndpoint<Body, Result>): this {
-    mountPost(this.app, path, endpoint);
+  /** Register POST endpoint with full type inference for path/query params. */
+  post<
+    Body,
+    Result = void,
+    PathParams extends TypedValidatorMap = TypedValidatorMap,
+    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  >(path: string, endpoint: PostEndpoint<Body, Result, PathParams, QueryParams>): this {
+    mountPost(this.app, path, endpoint as unknown as PostEndpoint<unknown>);
     return this;
   }
 
-  patch<Body, Result>(path: string, endpoint: PatchEndpoint<Body, Result>): this {
-    mountPatch(this.app, path, endpoint);
+  /** Register PATCH endpoint with full type inference for path/query params. */
+  patch<
+    Body,
+    Result = void,
+    PathParams extends TypedValidatorMap = TypedValidatorMap,
+    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  >(path: string, endpoint: PatchEndpoint<Body, Result, PathParams, QueryParams>): this {
+    mountPatch(this.app, path, endpoint as unknown as PatchEndpoint<unknown>);
     return this;
   }
 
-  put<Body, Result>(path: string, endpoint: PutEndpoint<Body, Result>): this {
-    mountPut(this.app, path, endpoint);
+  /** Register PUT endpoint with full type inference for path/query params. */
+  put<
+    Body,
+    Result = void,
+    PathParams extends TypedValidatorMap = TypedValidatorMap,
+    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  >(path: string, endpoint: PutEndpoint<Body, Result, PathParams, QueryParams>): this {
+    mountPut(this.app, path, endpoint as unknown as PutEndpoint<unknown>);
     return this;
   }
 
-  delete(path: string, endpoint: DeleteEndpoint): this;
+  /** Register DELETE endpoint with full endpoint object. */
+  delete<
+    PathParams extends TypedValidatorMap = TypedValidatorMap,
+    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  >(path: string, endpoint: DeleteEndpoint<PathParams, QueryParams>): this;
+
+  /** Register DELETE endpoint with function shorthand. */
   delete(path: string, run: (ctx: RequestContext) => void | Promise<void>): this;
-  delete(path: string, endpointOrRun: DeleteEndpoint | ((ctx: RequestContext) => void | Promise<void>)): this {
+
+  delete<
+    PathParams extends TypedValidatorMap = TypedValidatorMap,
+    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  >(
+    path: string,
+    endpointOrRun: DeleteEndpoint<PathParams, QueryParams> | ((ctx: RequestContext) => void | Promise<void>),
+  ): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
-    mountDelete(this.app, path, endpoint);
+    mountDelete(this.app, path, endpoint as DeleteEndpoint);
     return this;
   }
 }

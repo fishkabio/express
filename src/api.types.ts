@@ -1,7 +1,16 @@
-import { assertTruthy, ValueAssertion } from '@fishka/assertions';
-import { HTTP_BAD_REQUEST } from './http-status-codes';
+import { assertTruthy } from '@fishka/assertions';
 
-export type UrlTokensValidator = Record<string, ValueAssertion<string>>;
+
+/** Validator function that validates and returns typed value */
+export type TypeValidator<T> = (value: unknown) => T;
+
+/** Map of param name to type validator */
+export type TypedValidatorMap = Record<string, TypeValidator<unknown>>;
+
+/** Infer validated types from validator map */
+export type InferValidated<T extends TypedValidatorMap | undefined> = T extends TypedValidatorMap
+  ? { [K in keyof T]: ReturnType<T[K]> }
+  : Record<string, never>;
 
 export class HttpError extends Error {
   constructor(
@@ -77,36 +86,4 @@ export interface ApiResponse<ResponseEntity = unknown> {
 /** Converts an API response value into a standardized ApiResponse structure. */
 export function response<T = unknown>(result: T): ApiResponse<T> {
   return { result };
-}
-
-/** Globally identified URL (path or query) parameter info. */
-export interface UrlParameterInfo {
-  /** Optional global validator for this parameter. */
-  validator?: ValueAssertion<string>;
-  /** Description for documentation. */
-  description?: string;
-}
-
-/**
- * Default documentation and validation for URL parameters.
- * @Internal
- */
-export const URL_PARAMETER_INFO: Record<string, UrlParameterInfo> = {};
-
-/** Registers a new URL parameter. */
-export function registerUrlParameter(name: string, info: UrlParameterInfo): void {
-  URL_PARAMETER_INFO[name] = info;
-}
-
-/**
- * Asserts that the value is a registered URL parameter name.
- * @Internal
- */
-export function assertUrlParameter(name: unknown): asserts name is string {
-  assertHttp(typeof name === 'string', HTTP_BAD_REQUEST, 'Url parameter name must be a string');
-  assertHttp(
-    URL_PARAMETER_INFO[name],
-    HTTP_BAD_REQUEST,
-    `Invalid URL parameter: '${name}'. Please register it using 'registerUrlParameter('${name}', ...)'`,
-  );
 }

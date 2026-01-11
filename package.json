@@ -1,6 +1,6 @@
 {
   "name": "@fishka/express",
-  "version": "0.9.14",
+  "version": "0.9.15",
   "description": "Express.js extension with built-in validation, and type safety",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
