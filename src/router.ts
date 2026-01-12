@@ -1,6 +1,6 @@
 import { Assertion, getMessageFromError, ObjectAssertion, validateObject } from '@fishka/assertions';
 import * as url from 'url';
-import { ApiResponse, assertHttp, HttpError, InferValidated, TypedValidatorMap, TypeValidator } from './api.types';
+import { ApiResponse, assertHttp, HttpError, ValidatedParams, ParamValidatorMap, ParamValidator } from './api.types';
 import { AuthUser } from './auth/auth.types';
 import { catchRouteErrors } from './error-handling';
 import { HTTP_BAD_REQUEST, HTTP_OK } from './http-status-codes';
@@ -23,8 +23,8 @@ export type EndpointMiddleware<Context = RequestContext> = (
 /** Generic request context passed to all handlers. Database-agnostic and extensible. */
 export interface RequestContext<
   Body = void,
-  PathParams extends TypedValidatorMap = TypedValidatorMap,
-  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  PathParams extends ParamValidatorMap = ParamValidatorMap,
+  QueryParams extends ParamValidatorMap = ParamValidatorMap,
 > {
   /** Parsed and validated request body (for POST/PATCH/PUT handlers). */
   body: Body;
@@ -37,10 +37,10 @@ export interface RequestContext<
   authUser?: AuthUser;
 
   /** Validated path parameters (typed from $path validators). */
-  path: InferValidated<PathParams>;
+  path: ValidatedParams<PathParams>;
 
   /** Validated query parameters (typed from $query validators). */
-  query: InferValidated<QueryParams>;
+  query: ValidatedParams<QueryParams>;
 
   /**
    * Generic state storage for middleware to attach data.
@@ -51,8 +51,8 @@ export interface RequestContext<
 
 /** Base interface with common endpoint properties. */
 export interface EndpointBase<
-  PathParams extends TypedValidatorMap = TypedValidatorMap,
-  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  PathParams extends ParamValidatorMap = ParamValidatorMap,
+  QueryParams extends ParamValidatorMap = ParamValidatorMap,
   Body = void,
   Result = unknown,
 > {
@@ -71,23 +71,23 @@ export interface EndpointBase<
 /** Descriptor for GET list routes. */
 export type GetListEndpoint<
   ResultElementType,
-  PathParams extends TypedValidatorMap = TypedValidatorMap,
-  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  PathParams extends ParamValidatorMap = ParamValidatorMap,
+  QueryParams extends ParamValidatorMap = ParamValidatorMap,
 > = EndpointBase<PathParams, QueryParams, void, Array<ResultElementType>>;
 
 /** Descriptor for GET routes. */
 export type GetEndpoint<
   Result,
-  PathParams extends TypedValidatorMap = TypedValidatorMap,
-  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  PathParams extends ParamValidatorMap = ParamValidatorMap,
+  QueryParams extends ParamValidatorMap = ParamValidatorMap,
 > = EndpointBase<PathParams, QueryParams, void, Result>;
 
 /** Descriptor for POST routes. */
 export interface PostEndpoint<
   Body,
   Result = void,
-  PathParams extends TypedValidatorMap = TypedValidatorMap,
-  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  PathParams extends ParamValidatorMap = ParamValidatorMap,
+  QueryParams extends ParamValidatorMap = ParamValidatorMap,
 > extends EndpointBase<PathParams, QueryParams, Body, Result> {
   /** Request body validator. */
   $body: Body extends object ? ObjectAssertion<Body> : Assertion<Body>;
@@ -97,22 +97,22 @@ export interface PostEndpoint<
 export type PutEndpoint<
   Body,
   Result = void,
-  PathParams extends TypedValidatorMap = TypedValidatorMap,
-  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  PathParams extends ParamValidatorMap = ParamValidatorMap,
+  QueryParams extends ParamValidatorMap = ParamValidatorMap,
 > = PostEndpoint<Body, Result, PathParams, QueryParams>;
 
 /** Same as PUT. While PUT is used for the whole object update, PATCH is used for a partial update. */
 export type PatchEndpoint<
   Body,
   Result = void,
-  PathParams extends TypedValidatorMap = TypedValidatorMap,
-  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  PathParams extends ParamValidatorMap = ParamValidatorMap,
+  QueryParams extends ParamValidatorMap = ParamValidatorMap,
 > = PutEndpoint<Body, Result, PathParams, QueryParams>;
 
 /** Descriptor for DELETE routes. */
 export type DeleteEndpoint<
-  PathParams extends TypedValidatorMap = TypedValidatorMap,
-  QueryParams extends TypedValidatorMap = TypedValidatorMap,
+  PathParams extends ParamValidatorMap = ParamValidatorMap,
+  QueryParams extends ParamValidatorMap = ParamValidatorMap,
 > = EndpointBase<PathParams, QueryParams, void, void>;
 
 /** Union type for all route registration info objects. */
@@ -209,15 +209,15 @@ function createRouteHandler(
  * Validates and builds typed path/query parameters using $path and $query validators.
  */
 function buildValidatedParams<
-  PathParams extends TypedValidatorMap | undefined,
-  QueryParams extends TypedValidatorMap | undefined,
+  PathParams extends ParamValidatorMap | undefined,
+  QueryParams extends ParamValidatorMap | undefined,
 >(
   req: ExpressRequest,
   $path: PathParams,
   $query: QueryParams,
 ): {
-  path: PathParams extends TypedValidatorMap ? InferValidated<PathParams> : Record<string, never>;
-  query: QueryParams extends TypedValidatorMap ? InferValidated<QueryParams> : Record<string, never>;
+  path: PathParams extends ParamValidatorMap ? ValidatedParams<PathParams> : Record<string, never>;
+  query: QueryParams extends ParamValidatorMap ? ValidatedParams<QueryParams> : Record<string, never>;
 } {
   const pathResult: Record<string, unknown> = {};
   const queryResult: Record<string, unknown> = {};
@@ -227,7 +227,7 @@ function buildValidatedParams<
     if ($path) {
       for (const [key, validator] of Object.entries($path)) {
         const value = req.params[key];
-        pathResult[key] = (validator as TypeValidator<unknown>)(value);
+        pathResult[key] = (validator as ParamValidator<unknown>)(value);
       }
     }
 
@@ -237,7 +237,7 @@ function buildValidatedParams<
       for (const [key, validator] of Object.entries($query)) {
         const rawValue = parsedUrl.query[key];
         const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
-        queryResult[key] = (validator as TypeValidator<unknown>)(value);
+        queryResult[key] = (validator as ParamValidator<unknown>)(value);
       }
     }
   } catch (error) {
@@ -246,8 +246,8 @@ function buildValidatedParams<
   }
 
   return {
-    path: pathResult as PathParams extends TypedValidatorMap ? InferValidated<PathParams> : Record<string, never>,
-    query: queryResult as QueryParams extends TypedValidatorMap ? InferValidated<QueryParams> : Record<string, never>,
+    path: pathResult as PathParams extends ParamValidatorMap ? ValidatedParams<PathParams> : Record<string, never>,
+    query: queryResult as QueryParams extends ParamValidatorMap ? ValidatedParams<QueryParams> : Record<string, never>,
   };
 }
 
@@ -355,12 +355,12 @@ async function executeWithMiddleware<Context, Result>(
  * @Internal
  * Creates a new RequestContext instance.
  */
-function newRequestContext<Body, PathParams extends TypedValidatorMap, QueryParams extends TypedValidatorMap>(
+function newRequestContext<Body, PathParams extends ParamValidatorMap, QueryParams extends ParamValidatorMap>(
   requestBody: Body,
   req: ExpressRequest,
   res: ExpressResponse,
-  validatedPath: InferValidated<PathParams>,
-  validatedQuery: InferValidated<QueryParams>,
+  validatedPath: ValidatedParams<PathParams>,
+  validatedQuery: ValidatedParams<QueryParams>,
 ): RequestContext<Body, PathParams, QueryParams> {
   return {
     body: requestBody,

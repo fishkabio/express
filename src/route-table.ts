@@ -1,4 +1,4 @@
-import { TypedValidatorMap } from './api.types';
+import { ParamValidatorMap } from './api.types';
 import {
   DeleteEndpoint,
   GetEndpoint,
@@ -22,20 +22,20 @@ import { ExpressRouter } from './utils/express.utils';
 export class RouteTable {
   constructor(private readonly app: ExpressRouter) {}
 
-  /** Register GET endpoint with full type inference for path/query params. */
+  /** Register a GET endpoint with full type inference for path/query params. */
   get<
     Result,
-    PathParams extends TypedValidatorMap = TypedValidatorMap,
-    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+    PathParams extends ParamValidatorMap = ParamValidatorMap,
+    QueryParams extends ParamValidatorMap = ParamValidatorMap,
   >(path: string, endpoint: GetEndpoint<Result, PathParams, QueryParams>): this;
 
-  /** Register GET endpoint with function shorthand. */
+  /** Register a GET endpoint with function shorthand. */
   get<Result>(path: string, run: (ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>): this;
 
   get<
     Result,
-    PathParams extends TypedValidatorMap = TypedValidatorMap,
-    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+    PathParams extends ParamValidatorMap = ParamValidatorMap,
+    QueryParams extends ParamValidatorMap = ParamValidatorMap,
   >(
     path: string,
     endpointOrRun:
@@ -47,51 +47,51 @@ export class RouteTable {
     return this;
   }
 
-  /** Register POST endpoint with full type inference for path/query params. */
+  /** Register a POST endpoint with full type inference for path/query params. */
   post<
     Body,
     Result = void,
-    PathParams extends TypedValidatorMap = TypedValidatorMap,
-    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+    PathParams extends ParamValidatorMap = ParamValidatorMap,
+    QueryParams extends ParamValidatorMap = ParamValidatorMap,
   >(path: string, endpoint: PostEndpoint<Body, Result, PathParams, QueryParams>): this {
     mountPost(this.app, path, endpoint as unknown as PostEndpoint<unknown>);
     return this;
   }
 
-  /** Register PATCH endpoint with full type inference for path/query params. */
+  /** Register a PATCH endpoint with full type inference for path/query params. */
   patch<
     Body,
     Result = void,
-    PathParams extends TypedValidatorMap = TypedValidatorMap,
-    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+    PathParams extends ParamValidatorMap = ParamValidatorMap,
+    QueryParams extends ParamValidatorMap = ParamValidatorMap,
   >(path: string, endpoint: PatchEndpoint<Body, Result, PathParams, QueryParams>): this {
     mountPatch(this.app, path, endpoint as unknown as PatchEndpoint<unknown>);
     return this;
   }
 
-  /** Register PUT endpoint with full type inference for path/query params. */
+  /** Register a PUT endpoint with full type inference for path/query params. */
   put<
     Body,
     Result = void,
-    PathParams extends TypedValidatorMap = TypedValidatorMap,
-    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+    PathParams extends ParamValidatorMap = ParamValidatorMap,
+    QueryParams extends ParamValidatorMap = ParamValidatorMap,
   >(path: string, endpoint: PutEndpoint<Body, Result, PathParams, QueryParams>): this {
     mountPut(this.app, path, endpoint as unknown as PutEndpoint<unknown>);
     return this;
   }
 
-  /** Register DELETE endpoint with full endpoint object. */
+  /** Register a DELETE endpoint with a full endpoint object. */
   delete<
-    PathParams extends TypedValidatorMap = TypedValidatorMap,
-    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+    PathParams extends ParamValidatorMap = ParamValidatorMap,
+    QueryParams extends ParamValidatorMap = ParamValidatorMap,
   >(path: string, endpoint: DeleteEndpoint<PathParams, QueryParams>): this;
 
-  /** Register DELETE endpoint with function shorthand. */
+  /** Register a DELETE endpoint with function shorthand. */
   delete(path: string, run: (ctx: RequestContext) => void | Promise<void>): this;
 
   delete<
-    PathParams extends TypedValidatorMap = TypedValidatorMap,
-    QueryParams extends TypedValidatorMap = TypedValidatorMap,
+    PathParams extends ParamValidatorMap = ParamValidatorMap,
+    QueryParams extends ParamValidatorMap = ParamValidatorMap,
   >(
     path: string,
     endpointOrRun: DeleteEndpoint<PathParams, QueryParams> | ((ctx: RequestContext) => void | Promise<void>),

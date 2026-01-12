@@ -4,10 +4,10 @@
  */
 
 import { assertTruthy } from '@fishka/assertions';
-import { TypeValidator } from '../api.types';
+import { ParamValidator } from '../api.types';
 
 /** Makes validator optional - returns undefined if value missing */
-export function optional<T>(validator: TypeValidator<T>): TypeValidator<T | undefined> {
+export function optional<T>(validator: ParamValidator<T>): ParamValidator<T | undefined> {
   return (value: unknown): T | undefined => {
     if (value === undefined || value === null || value === '') {
       return undefined;
@@ -37,24 +37,24 @@ export type Operator<T, R = T> = (value: T) => R;
  * param(minLength(3))          // string with min length
  * param(trim, lowercase)       // trimmed lowercase string
  */
-export function param(): TypeValidator<string>;
-export function param<A>(op1: ParamOperator<A>): TypeValidator<A>;
-export function param<A, B>(op1: ParamOperator<A>, op2: Operator<A, B>): TypeValidator<B>;
-export function param<A, B, C>(op1: ParamOperator<A>, op2: Operator<A, B>, op3: Operator<B, C>): TypeValidator<C>;
+export function param(): ParamValidator<string>;
+export function param<A>(op1: ParamOperator<A>): ParamValidator<A>;
+export function param<A, B>(op1: ParamOperator<A>, op2: Operator<A, B>): ParamValidator<B>;
+export function param<A, B, C>(op1: ParamOperator<A>, op2: Operator<A, B>, op3: Operator<B, C>): ParamValidator<C>;
 export function param<A, B, C, D>(
   op1: ParamOperator<A>,
   op2: Operator<A, B>,
   op3: Operator<B, C>,
   op4: Operator<C, D>,
-): TypeValidator<D>;
+): ParamValidator<D>;
 export function param<A, B, C, D, E>(
   op1: ParamOperator<A>,
   op2: Operator<A, B>,
   op3: Operator<B, C>,
   op4: Operator<C, D>,
   op5: Operator<D, E>,
-): TypeValidator<E>;
-export function param(...operators: Array<(value: never) => unknown>): TypeValidator<unknown> {
+): ParamValidator<E>;
+export function param(...operators: Array<(value: never) => unknown>): ParamValidator<unknown> {
   return (value: unknown): unknown => {
     assertTruthy(typeof value === 'string', `Expected string, got ${typeof value}`);
     let result: unknown = value;

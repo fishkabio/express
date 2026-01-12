@@ -1,16 +1,15 @@
 import { assertTruthy } from '@fishka/assertions';
 
-
-/** Validator function that validates and returns typed value */
-export type TypeValidator<T> = (value: unknown) => T;
+/** Validator function that validates and returns a typed value */
+export type ParamValidator<T> = (value: unknown) => T;
 
 /** Map of param name to type validator */
-export type TypedValidatorMap = Record<string, TypeValidator<unknown>>;
+export type ParamValidatorMap = Record<string, ParamValidator<unknown>>;
 
 /** Infer validated types from validator map */
-export type InferValidated<T extends TypedValidatorMap | undefined> = T extends TypedValidatorMap
+export type ValidatedParams<T extends ParamValidatorMap | undefined> = T extends ParamValidatorMap
   ? { [K in keyof T]: ReturnType<T[K]> }
-  : Record<string, string>;
+  : Record<string, never>;
 
 export class HttpError extends Error {
   constructor(
