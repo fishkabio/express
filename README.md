@@ -12,7 +12,7 @@ npm install @fishka/express
 
 ```typescript
 import express from 'express';
-import { createRouteTable, param, toInt } from '@fishka/express';
+import { createRouteTable, check, toInt } from '@fishka/express';
 import { assertString } from '@fishka/assertions';
 
 const app = express();
@@ -21,13 +21,10 @@ app.use(express.json());
 const routes = createRouteTable(app);
 
 // GET /users/:id - with typed path params
-routes.get('users/:id', {
-  $path: { id: param(toInt()) },
-  run: async ctx => ({
-    id: ctx.path.id,  // number - typed from $path
-    name: 'John',
-  }),
-});
+routes.get('users/:id', async ctx => ({
+  id: ctx.path('id', check(toInt())),  // number - validated inline
+  name: 'John',
+}));
 
 // GET /users - list all users
 routes.get('users', async () => [
@@ -36,10 +33,10 @@ routes.get('users', async () => [
 ]);
 
 // POST /users - with body validation
-routes.post<{ name: string }, { id: number }>('users', {
-  $body: { name: v => assertString(v, 'name required') },
-  run: async ctx => ({ id: 1 }),
-});
+routes.post('users', async ctx => ({ 
+  id: 1,
+  name: ctx.body({ name: v => assertString(v, 'name required') }).name
+}));
 
 // DELETE /users/:id
 routes.delete('users/:id', async () => {});
@@ -49,28 +46,25 @@ app.listen(3000);
 
 ## URL Parameter Validation
 
-Use `param()` to validate and transform path/query parameters. All operators are composable:
+Use `check()` to validate and transform path/query parameters. All operators are composable:
 
 ```typescript
-import { param, toInt, minLength, matches, min, range, oneOf } from '@fishka/express';
+import { check, toInt, minLength, matches, min, range, oneOf } from '@fishka/express';
 
-routes.get('users/:id', {
-  $path: {
-    id: param(toInt()),                      // string → number
-  },
-  $query: {
-    page: param(toInt(), min(1)),            // number >= 1
-    limit: param(toInt(), range(1, 100)),    // number 1-100
-    sort: param(oneOf('asc', 'desc')),       // enum
-    search: param(minLength(3)),             // string min 3 chars
-  },
-  run: async ctx => ({
-    id: ctx.path.id,       // number
-    page: ctx.query.page,  // number
-    sort: ctx.query.sort,  // 'asc' | 'desc'
-  }),
-});
+routes.get('users/:id', async ctx => ({
+  id: ctx.path('id', check(toInt())),                      // string → number (required)
+  page: ctx.query('page', check(toInt(), min(1))),         // number >= 1, optional
+  limit: ctx.query('limit', check(toInt(), range(1, 100))), // number 1-100, optional
+  sort: ctx.query('sort', check(oneOf('asc', 'desc'))),    // enum, optional
+  search: ctx.query('search', check(minLength(3))),        // string min 3 chars, optional
+}));
 ```
+
+### Without Validators
+
+- `ctx.path('name')` - returns string (throws 400 if missing)
+- `ctx.query('name')` - returns string | undefined (returns undefined if missing/empty)
+- Validators receive raw values (including undefined/null/empty) and can enforce requiredness
 
 ### Available Operators
 
@@ -98,18 +92,16 @@ routes.get('users/:id', {
 
 ### Optional Parameters
 
-Use `optional()` to make parameters optional:
+Query parameters are optional by default. Use `ctx.query()` without a validator to get optional string values:
 
 ```typescript
-import { optional, param, toInt } from '@fishka/express';
+import { check, toInt } from '@fishka/express';
 
-routes.get('users', {
-  $query: {
-    page: optional(param(toInt())),  // number | undefined
-  },
-  run: async ctx => {
-    const page = ctx.query.page ?? 1;
-  },
+routes.get('users', async ctx => {
+  const page = ctx.query('page', check(toInt())) ?? 1;  // number | undefined
+  const search = ctx.query('search');  // string | undefined
+  
+  return { page, search };
 });
 ```
 
@@ -163,7 +155,7 @@ Full initialization with TLS context, validation, and error handling:
 
 ```typescript
 import express from 'express';
-import { createRouteTable, createTlsMiddleware, catchAllMiddleware, param, toInt } from '@fishka/express';
+import { createRouteTable, createTlsMiddleware, catchAllMiddleware, check, toInt } from '@fishka/express';
 
 const app = express();
 
@@ -178,10 +170,9 @@ const routes = createRouteTable(app);
 
 routes.get('health', async () => ({ status: 'UP' }));
 
-routes.get('users/:id', {
-  $path: { id: param(toInt()) },
-  run: async ctx => ({ id: ctx.path.id }),
-});
+routes.get('users/:id', async ctx => ({ 
+  id: ctx.path('id', check(toInt())) 
+}));
 
 // 4. Error handler - catches middleware/parsing errors
 app.use(catchAllMiddleware);

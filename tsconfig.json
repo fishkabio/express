@@ -15,6 +15,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
+    "noPropertyAccessFromIndexSignature": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "types": ["node", "jest"],

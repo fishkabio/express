@@ -12,9 +12,9 @@ describe('Request ID Handling', () => {
 
     const response = await makeRequest('GET', '/test-auto-id');
     expect(response.status).toBe(200);
-    expect(response.body?.requestId).toBeDefined();
-    expect(typeof response.body?.requestId).toBe('string');
-    expect((response.body?.requestId as string).length).toBeGreaterThan(0);
+    expect(response.body?.['requestId']).toBeDefined();
+    expect(typeof response.body?.['requestId']).toBe('string');
+    expect((response.body?.['requestId'] as string).length).toBeGreaterThan(0);
   });
 
   it('should use externally provided request ID from header', async () => {
@@ -27,7 +27,7 @@ describe('Request ID Handling', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body?.requestId).toBe(customId);
+    expect(response.body?.['requestId']).toBe(customId);
   });
 
   it('should include request ID in error responses', async () => {
@@ -42,7 +42,7 @@ describe('Request ID Handling', () => {
     });
 
     expect(response.status).toBe(HTTP_INTERNAL_SERVER_ERROR);
-    expect(response.body?.requestId).toBe(customId);
+    expect(response.body?.['requestId']).toBe(customId);
   });
 
   it('should ignore request ID from header if trustRequestIdHeader is false', async () => {
@@ -57,7 +57,7 @@ describe('Request ID Handling', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body?.requestId).toBeDefined();
-    expect(response.body?.requestId).not.toBe(customId);
+    expect(response.body?.['requestId']).toBeDefined();
+    expect(response.body?.['requestId']).not.toBe(customId);
   });
 });

@@ -1,5 +1,5 @@
 import { assertString } from '@fishka/assertions';
-import { HTTP_FORBIDDEN, HttpError, catchAllMiddleware, param, check } from '../src';
+import { HTTP_FORBIDDEN, HttpError, catchAllMiddleware, check, validator } from '../src';
 import { getTestApp, getTestRoutes, makeRawRequest, makeRequest } from './test-setup';
 
 describe('Structured Error Handling', () => {
@@ -7,31 +7,26 @@ describe('Structured Error Handling', () => {
   describe('Validator Errors', () => {
     it('should return 400 when URL parameter validation fails', async () => {
       const routes = getTestRoutes();
-      routes.get('test-validation/:id', {
-        $path: {
-          id: param(check(s => s === 'valid', 'Invalid ID')),
-        },
-        run: async ctx => ({ id: ctx.path.id }),
-      });
+      routes.get('test-validation/:id', async ctx => ({ 
+        id: ctx.path('id', check(validator(s => s === 'valid' ? undefined : 'Invalid ID'))) 
+      }));
 
       const response = await makeRequest('GET', '/test-validation/invalid');
       expect(response.status).toBe(400);
-      expect(response.body?.error).toContain('Invalid ID');
+      expect(response.body?.['error']).toContain('Invalid ID');
     });
 
     it('should return 400 when Body validation fails', async () => {
       const routes = getTestRoutes();
-      routes.post<{ name: string }, { success: boolean }>('test-body-validation', {
-        $body: {
-          name: v => assertString(v, 'Name must be string'),
-        },
-        run: async () => ({ success: true }),
+      routes.post('test-body-validation', async ctx => {
+        ctx.body({ name: (v: unknown) => assertString(v, 'Name must be string') });
+        return { success: true };
       });
 
       // Pass invalid body (number instead of string)
       const response = await makeRequest('POST', '/test-body-validation', { body: { name: 123 } });
       expect(response.status).toBe(400);
-      expect(response.body?.error).toContain('Name must be string');
+      expect(response.body?.['error']).toContain('Name must be string');
     });
   });
 
@@ -45,7 +40,7 @@ describe('Structured Error Handling', () => {
 
       const response = await makeRequest('GET', '/test-handler-error');
       expect(response.status).toBe(500);
-      expect(response.body?.error).toBe('Something went wrong in the handler');
+      expect(response.body?.['error']).toBe('Something went wrong in the handler');
     });
 
     it('should return HttpError with separate details field', async () => {
@@ -59,8 +54,8 @@ describe('Structured Error Handling', () => {
 
       const response = await makeRequest('GET', '/test-http-error-details');
       expect(response.status).toBe(HTTP_FORBIDDEN);
-      expect(response.body?.error).toBe('Forbidden action');
-      expect(response.body?.details).toEqual({ reason: 'Insufficient permissions', code: 'PRO-001' });
+      expect(response.body?.['error']).toBe('Forbidden action');
+      expect(response.body?.['details']).toEqual({ reason: 'Insufficient permissions', code: 'PRO-001' });
     });
   });
 
@@ -77,16 +72,16 @@ describe('Structured Error Handling', () => {
 
       const response = await makeRequest('GET', '/test-next-error');
       expect(response.status).toBe(500);
-      expect(response.body?.error).toBe('Error via next()');
+      expect(response.body?.['error']).toBe('Error via next()');
     });
 
     it('should catch JSON parsing errors (SyntaxError) with 400 status', async () => {
       const app = getTestApp();
       const routes = getTestRoutes();
 
-      routes.post<{ data: string }, { success: boolean }>('test-json-parse-error', {
-        $body: { data: v => assertString(v) },
-        run: async () => ({ success: true }),
+      routes.post('test-json-parse-error', async ctx => {
+        ctx.body({ data: (v: unknown) => assertString(v) });
+        return { success: true };
       });
 
       app.use(catchAllMiddleware);
@@ -97,7 +92,7 @@ describe('Structured Error Handling', () => {
       });
 
       expect(response.status).toBe(400);
-      expect(response.body?.error).toContain('Failed to parse request');
+      expect(response.body?.['error']).toContain('Failed to parse request');
     });
 
     it('should catch HttpError thrown in middleware and preserve status code', async () => {
@@ -111,7 +106,7 @@ describe('Structured Error Handling', () => {
 
       const response = await makeRequest('GET', '/test-http-error-middleware');
       expect(response.status).toBe(HTTP_FORBIDDEN);
-      expect(response.body?.error).toBe('Access denied by middleware');
+      expect(response.body?.['error']).toBe('Access denied by middleware');
     });
 
     it('should catch errors from async middleware that rejects', async () => {
@@ -126,7 +121,7 @@ describe('Structured Error Handling', () => {
 
       const response = await makeRequest('GET', '/test-async-reject');
       expect(response.status).toBe(500);
-      expect(response.body?.error).toBe('Async middleware rejection');
+      expect(response.body?.['error']).toBe('Async middleware rejection');
     });
 
     it('should handle errors with no message gracefully', async () => {
@@ -140,7 +135,7 @@ describe('Structured Error Handling', () => {
 
       const response = await makeRequest('GET', '/test-empty-error');
       expect(response.status).toBe(500);
-      expect(response.body?.error).toBe('Internal error');
+      expect(response.body?.['error']).toBe('Internal error');
     });
 
     it('should handle non-Error objects thrown as errors', async () => {
@@ -154,7 +149,7 @@ describe('Structured Error Handling', () => {
 
       const response = await makeRequest('GET', '/test-string-error');
       expect(response.status).toBe(500);
-      expect(response.body?.error).toBe('String error message');
+      expect(response.body?.['error']).toBe('String error message');
     });
 
     it('should handle null/undefined error objects', async () => {
@@ -173,7 +168,7 @@ describe('Structured Error Handling', () => {
       const response = await makeRequest('GET', '/test-null-error');
       // null error means "no error" in Express, should reach the route
       expect(response.status).toBe(200);
-      expect(response.body?.result).toEqual({ passed: true });
+      expect(response.body?.['result']).toEqual({ passed: true });
     });
   });
 
@@ -195,7 +190,7 @@ describe('Structured Error Handling', () => {
       // Second request should still work (server is alive)
       const response2 = await makeRequest('GET', '/test-sync-throw-stability');
       expect(response2.status).toBe(500);
-      expect(response2.body?.error).toBe('Sync throw in route');
+      expect(response2.body?.['error']).toBe('Sync throw in route');
     });
 
     it('should handle multiple concurrent errors without crashing', async () => {
@@ -216,7 +211,7 @@ describe('Structured Error Handling', () => {
       // All should fail gracefully
       responses.forEach(response => {
         expect(response.status).toBe(500);
-        expect(response.body?.error).toBe('Concurrent error');
+        expect(response.body?.['error']).toBe('Concurrent error');
       });
     });
 

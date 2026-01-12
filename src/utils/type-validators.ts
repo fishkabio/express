@@ -16,10 +16,6 @@ export function optional<T>(validator: ParamValidator<T>): ParamValidator<T | un
   };
 }
 
-// ============================================================================
-// URL Parameter validation (string-first API)
-// ============================================================================
-
 /** Operator that transforms string to T */
 export type ParamOperator<T> = (value: string) => T;
 
@@ -31,30 +27,30 @@ export type Operator<T, R = T> = (value: T) => R;
  * Operators are applied in sequence to validate/transform the value.
  *
  * @example
- * param()                      // string
- * param(toInt)                 // number
- * param(toInt, min(1))         // number >= 1
- * param(minLength(3))          // string with min length
- * param(trim, lowercase)       // trimmed lowercase string
+ * check()                      // string
+ * check(toInt)                 // number
+ * check(toInt, min(1))         // number >= 1
+ * check(minLength(3))          // string with min length
+ * check(trim, lowercase)       // trimmed lowercase string
  */
-export function param(): ParamValidator<string>;
-export function param<A>(op1: ParamOperator<A>): ParamValidator<A>;
-export function param<A, B>(op1: ParamOperator<A>, op2: Operator<A, B>): ParamValidator<B>;
-export function param<A, B, C>(op1: ParamOperator<A>, op2: Operator<A, B>, op3: Operator<B, C>): ParamValidator<C>;
-export function param<A, B, C, D>(
+export function check(): ParamValidator<string>;
+export function check<A>(op1: ParamOperator<A>): ParamValidator<A>;
+export function check<A, B>(op1: ParamOperator<A>, op2: Operator<A, B>): ParamValidator<B>;
+export function check<A, B, C>(op1: ParamOperator<A>, op2: Operator<A, B>, op3: Operator<B, C>): ParamValidator<C>;
+export function check<A, B, C, D>(
   op1: ParamOperator<A>,
   op2: Operator<A, B>,
   op3: Operator<B, C>,
   op4: Operator<C, D>,
 ): ParamValidator<D>;
-export function param<A, B, C, D, E>(
+export function check<A, B, C, D, E>(
   op1: ParamOperator<A>,
   op2: Operator<A, B>,
   op3: Operator<B, C>,
   op4: Operator<C, D>,
   op5: Operator<D, E>,
 ): ParamValidator<E>;
-export function param(...operators: Array<(value: never) => unknown>): ParamValidator<unknown> {
+export function check(...operators: Array<(value: never) => unknown>): ParamValidator<unknown> {
   return (value: unknown): unknown => {
     assertTruthy(typeof value === 'string', `Expected string, got ${typeof value}`);
     let result: unknown = value;
@@ -65,14 +61,12 @@ export function param(...operators: Array<(value: never) => unknown>): ParamVali
   };
 }
 
-// ============================================================================
 // String → T operators (first in chain)
-// ============================================================================
-
 /** Parses string to integer */
 export const toInt =
   (message?: string): ParamOperator<number> =>
   (value: string): number => {
+    assertTruthy(value !== undefined && value !== null && value !== '', message ?? 'Expected integer, got undefined or empty');
     const num = Number(value);
     assertTruthy(Number.isInteger(num), message ?? `Expected integer, got '${value}'`);
     return num;
@@ -82,6 +76,7 @@ export const toInt =
 export const toNumber =
   (message?: string): ParamOperator<number> =>
   (value: string): number => {
+    assertTruthy(value !== undefined && value !== null && value !== '', message ?? 'Expected number, got undefined or empty');
     const num = Number(value);
     assertTruthy(!isNaN(num), message ?? `Expected number, got '${value}'`);
     return num;
@@ -91,6 +86,7 @@ export const toNumber =
 export const toBool =
   (message?: string): ParamOperator<boolean> =>
   (value: string): boolean => {
+    assertTruthy(value !== undefined && value !== null && value !== '', message ?? 'Expected boolean, got undefined or empty');
     assertTruthy(value === 'true' || value === 'false', message ?? `Expected 'true' or 'false', got '${value}'`);
     return value === 'true';
   };
@@ -103,9 +99,7 @@ export const oneOf =
     return value as T;
   };
 
-// ============================================================================
 // String operators (string → string)
-// ============================================================================
 
 /** Requires minimum string length */
 export const minLength =
@@ -140,9 +134,7 @@ export const lowercase: ParamOperator<string> = (value: string): string => value
 /** Converts string to uppercase */
 export const uppercase: ParamOperator<string> = (value: string): string => value.toUpperCase();
 
-// ============================================================================
 // Number operators (number → number)
-// ============================================================================
 
 /** Requires minimum value */
 export const min =
@@ -168,12 +160,10 @@ export const range =
     return value;
   };
 
-// ============================================================================
 // Generic operators
-// ============================================================================
 
-/** Adds custom validation */
-export const check =
+/** Adds custom validation with predicate */
+export const assert =
   <T>(predicate: (value: T) => boolean, message: string): Operator<T> =>
   (value: T): T => {
     assertTruthy(predicate(value), message);
@@ -185,3 +175,21 @@ export const map =
   <T, R>(fn: (value: T) => R): Operator<T, R> =>
   (value: T): R =>
     fn(value);
+
+/**
+ * Creates a simple validator that returns error message or undefined.
+ * Can be used directly in check().
+ * @example
+ * check(validator(s => s === 'valid' ? undefined : 'Invalid ID'))
+ */
+export function validator<T>(
+  validateFn: (value: T) => string | undefined
+): (value: T) => T {
+  return (value: T): T => {
+    const error = validateFn(value);
+    if (error !== undefined) {
+      assertTruthy(false, error);
+    }
+    return value;
+  };
+}

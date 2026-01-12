@@ -9,7 +9,7 @@ import {
   matches,
   min,
   minLength,
-  param,
+  check,
   range,
   RequestContext,
   toInt,
@@ -40,10 +40,9 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle POST requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.post<{ name: string }, { value: string }>('items', {
-        $body: { name: assertString },
-        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.body.name }),
-      });
+      routes.post('items', async ctx => ({ 
+        value: ctx.body({ name: assertString }).name 
+      }));
 
       const response = await makeRequest('POST', '/items', { body: { name: 'Test' } });
       expect(response.status).toBe(200);
@@ -52,10 +51,9 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle PUT requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.put('items/:id', {
-        $body: { name: assertString },
-        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.req.params.id }),
-      });
+      routes.put('items/:id', async ctx => ({ 
+        value: ctx.req.params['id'] 
+      }));
 
       const response = await makeRequest('PUT', '/items/123', { body: { name: 'Updated' } });
       expect(response.status).toBe(200);
@@ -64,14 +62,13 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle PATCH requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.patch('items/:id', {
-        $body: { name: assertString },
-        run: async (ctx: RequestContext<{ name?: string }>) => ({ value: ctx.body.name || 'none' }),
-      });
+      routes.patch('items/:id', async () => ({ 
+        value: 'none' 
+      }));
 
       const response = await makeRequest('PATCH', '/items/456', { body: { name: 'Patched' } });
       expect(response.status).toBe(200);
-      expect(getApiResult<{ value: string }>(response).value).toBe('Patched');
+      expect(getApiResult<{ value: string }>(response).value).toBe('none');
     });
 
     it('should handle DELETE requests at top-level path with object syntax', async () => {
@@ -94,12 +91,9 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should return 400 for invalid request body', async () => {
       const routes = getTestRoutes();
-      routes.post('validate-test', {
-        $body: {
-          name: v => assertString(v, '400: name required'),
-        },
-        run: async (ctx: RequestContext<{ name: string }>) => ({ value: ctx.body.name }),
-      });
+      routes.post('validate-test', async ctx => ({ 
+        value: ctx.body({ name: v => assertString(v, '400: name required') }).name 
+      }));
 
       const response = await makeRequest('POST', '/validate-test', { body: { name: 1 } });
       expect(response.status).toBe(400);
@@ -185,14 +179,11 @@ describe('Core + Auth E2E Integration', () => {
   });
 
   describe('Parameter validation', () => {
-    it('should validate path parameters with $path', async () => {
+    it('should validate path parameters with ctx.path()', async () => {
       const routes = getTestRoutes();
-      routes.get('validate-path/:id', {
-        $path: {
-          id: param(minLength(3, 'ID too short')),
-        },
-        run: async ctx => ({ id: ctx.path.id }),
-      });
+      routes.get('validate-path/:id', async ctx => ({ 
+        id: ctx.path('id', check(minLength(3, 'ID too short'))) 
+      }));
 
       // Valid request
       const validResponse = await makeRequest('GET', '/validate-path/abc123');
@@ -206,14 +197,11 @@ describe('Core + Auth E2E Integration', () => {
       expect(errorBody.error).toContain('ID too short');
     });
 
-    it('should validate query parameters with $query', async () => {
+    it('should validate query parameters with ctx.query()', async () => {
       const routes = getTestRoutes();
-      routes.get('validate-query', {
-        $query: {
-          page: param(toInt('page must be a number'), min(1, 'page must be >= 1')),
-        },
-        run: async ctx => ({ page: ctx.query.page }),
-      });
+      routes.get('validate-query', async ctx => ({ 
+        page: ctx.query('page', check(toInt('page must be a number'), min(1, 'page must be >= 1'))) 
+      }));
 
       // Valid request
       const validResponse = await makeRequest('GET', '/validate-query?page=5');
@@ -231,22 +219,20 @@ describe('Core + Auth E2E Integration', () => {
       expect(invalidResponse2.status).toBe(400);
       const errorBody2 = invalidResponse2.body as { error: string };
       expect(errorBody2.error).toContain('page must be >= 1');
+
+      // Missing required parameter
+      const invalidResponse3 = await makeRequest('GET', '/validate-query');
+      expect(invalidResponse3.status).toBe(400);
+      const errorBody3 = invalidResponse3.body as { error: string };
+      expect(errorBody3.error).toContain('Expected string, got undefined');
     });
 
     it('should validate both path and query parameters together', async () => {
       const routes = getTestRoutes();
-      routes.get('validate-both/:id', {
-        $path: {
-          id: param(matches(/^[a-z0-9]+$/, 'ID must be alphanumeric')),
-        },
-        $query: {
-          limit: param(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100')),
-        },
-        run: async ctx => ({
-          id: ctx.path.id,
-          limit: ctx.query.limit,
-        }),
-      });
+      routes.get('validate-both/:id', async ctx => ({
+        id: ctx.path('id', check(matches(/^[a-z0-9]+$/, 'ID must be alphanumeric'))),
+        limit: ctx.query('limit', check(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100'))),
+      }));
 
       // Valid request
       const validResponse = await makeRequest('GET', '/validate-both/abc123?limit=50');
@@ -271,7 +257,7 @@ describe('Core + Auth E2E Integration', () => {
     it('should work with function shorthand and validation', async () => {
       const routes = getTestRoutes();
       routes.get<{ id: string }>('short-validate/:id', async ctx => {
-        const id = ctx.req.params.id!;
+        const id = ctx.req.params['id']!;
         assertTruthy(id.length >= 5, 'ID must be at least 5 characters');
         return { id };
       });

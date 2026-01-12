@@ -83,7 +83,7 @@ export function getResponseBody(response: {
  */
 export function getApiResult<T = unknown>(response: { status: number; body: Record<string, unknown> | undefined }): T {
   const body = getResponseBody(response);
-  return body.result as T;
+  return body['result'] as T;
 }
 
 /** Makes HTTP requests to the test server. */
