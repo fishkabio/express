@@ -10,7 +10,7 @@ export type TypedValidatorMap = Record<string, TypeValidator<unknown>>;
 /** Infer validated types from validator map */
 export type InferValidated<T extends TypedValidatorMap | undefined> = T extends TypedValidatorMap
   ? { [K in keyof T]: ReturnType<T[K]> }
-  : Record<string, never>;
+  : Record<string, string>;
 
 export class HttpError extends Error {
   constructor(
