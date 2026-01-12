@@ -1,4 +1,4 @@
-import { check, toInt } from '../src';
+import { transform, toInt } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
 describe('Custom URL Parameters', () => {
@@ -17,7 +17,7 @@ describe('Custom URL Parameters', () => {
     const routes = getTestRoutes();
 
     routes.get('shops/:shopId', async ctx => ({ 
-      id: ctx.path('shopId', check(toInt())) 
+      id: ctx.path('shopId', transform(toInt())) 
     }));
 
     const response = await makeRequest('GET', '/shops/999');

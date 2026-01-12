@@ -27,30 +27,30 @@ export type Operator<T, R = T> = (value: T) => R;
  * Operators are applied in sequence to validate/transform the value.
  *
  * @example
- * check()                      // string
- * check(toInt)                 // number
- * check(toInt, min(1))         // number >= 1
- * check(minLength(3))          // string with min length
- * check(trim, lowercase)       // trimmed lowercase string
+ * transform()                      // string
+ * transform(toInt)                 // number
+ * transform(toInt, min(1))         // number >= 1
+ * transform(minLength(3))          // string with min length
+ * transform(trim, lowercase)       // trimmed lowercase string
  */
-export function check(): ParamValidator<string>;
-export function check<A>(op1: ParamOperator<A>): ParamValidator<A>;
-export function check<A, B>(op1: ParamOperator<A>, op2: Operator<A, B>): ParamValidator<B>;
-export function check<A, B, C>(op1: ParamOperator<A>, op2: Operator<A, B>, op3: Operator<B, C>): ParamValidator<C>;
-export function check<A, B, C, D>(
+export function transform(): ParamValidator<string>;
+export function transform<A>(op1: ParamOperator<A>): ParamValidator<A>;
+export function transform<A, B>(op1: ParamOperator<A>, op2: Operator<A, B>): ParamValidator<B>;
+export function transform<A, B, C>(op1: ParamOperator<A>, op2: Operator<A, B>, op3: Operator<B, C>): ParamValidator<C>;
+export function transform<A, B, C, D>(
   op1: ParamOperator<A>,
   op2: Operator<A, B>,
   op3: Operator<B, C>,
   op4: Operator<C, D>,
 ): ParamValidator<D>;
-export function check<A, B, C, D, E>(
+export function transform<A, B, C, D, E>(
   op1: ParamOperator<A>,
   op2: Operator<A, B>,
   op3: Operator<B, C>,
   op4: Operator<C, D>,
   op5: Operator<D, E>,
 ): ParamValidator<E>;
-export function check(...operators: Array<(value: never) => unknown>): ParamValidator<unknown> {
+export function transform(...operators: Array<(value: never) => unknown>): ParamValidator<unknown> {
   return (value: unknown): unknown => {
     assertTruthy(typeof value === 'string', `Expected string, got ${typeof value}`);
     let result: unknown = value;
@@ -178,9 +178,9 @@ export const map =
 
 /**
  * Creates a simple validator that returns error message or undefined.
- * Can be used directly in check().
+ * Can be used directly in transform().
  * @example
- * check(validator(s => s === 'valid' ? undefined : 'Invalid ID'))
+ * transform(validator(s => s === 'valid' ? undefined : 'Invalid ID'))
  */
 export function validator<T>(
   validateFn: (value: T) => string | undefined

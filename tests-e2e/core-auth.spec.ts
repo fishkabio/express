@@ -9,7 +9,7 @@ import {
   matches,
   min,
   minLength,
-  check,
+  transform,
   range,
   RequestContext,
   toInt,
@@ -182,7 +182,7 @@ describe('Core + Auth E2E Integration', () => {
     it('should validate path parameters with ctx.path()', async () => {
       const routes = getTestRoutes();
       routes.get('validate-path/:id', async ctx => ({ 
-        id: ctx.path('id', check(minLength(3, 'ID too short'))) 
+        id: ctx.path('id', transform(minLength(3, 'ID too short'))) 
       }));
 
       // Valid request
@@ -200,7 +200,7 @@ describe('Core + Auth E2E Integration', () => {
     it('should validate query parameters with ctx.query()', async () => {
       const routes = getTestRoutes();
       routes.get('validate-query', async ctx => ({ 
-        page: ctx.query('page', check(toInt('page must be a number'), min(1, 'page must be >= 1'))) 
+        page: ctx.query('page', transform(toInt('page must be a number'), min(1, 'page must be >= 1'))) 
       }));
 
       // Valid request
@@ -230,8 +230,8 @@ describe('Core + Auth E2E Integration', () => {
     it('should validate both path and query parameters together', async () => {
       const routes = getTestRoutes();
       routes.get('validate-both/:id', async ctx => ({
-        id: ctx.path('id', check(matches(/^[a-z0-9]+$/, 'ID must be alphanumeric'))),
-        limit: ctx.query('limit', check(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100'))),
+        id: ctx.path('id', transform(matches(/^[a-z0-9]+$/, 'ID must be alphanumeric'))),
+        limit: ctx.query('limit', transform(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100'))),
       }));
 
       // Valid request

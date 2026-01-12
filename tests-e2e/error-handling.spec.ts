@@ -1,5 +1,5 @@
 import { assertString } from '@fishka/assertions';
-import { HTTP_FORBIDDEN, HttpError, catchAllMiddleware, check, validator } from '../src';
+import { HTTP_FORBIDDEN, HttpError, catchAllMiddleware, transform, validator } from '../src';
 import { getTestApp, getTestRoutes, makeRawRequest, makeRequest } from './test-setup';
 
 describe('Structured Error Handling', () => {
@@ -8,7 +8,7 @@ describe('Structured Error Handling', () => {
     it('should return 400 when URL parameter validation fails', async () => {
       const routes = getTestRoutes();
       routes.get('test-validation/:id', async ctx => ({ 
-        id: ctx.path('id', check(validator(s => s === 'valid' ? undefined : 'Invalid ID'))) 
+        id: ctx.path('id', transform(validator(s => s === 'valid' ? undefined : 'Invalid ID'))) 
       }));
 
       const response = await makeRequest('GET', '/test-validation/invalid');
