@@ -100,14 +100,7 @@ export type RouteRegistrationInfo = (
 
 /** Implementation of RequestContext with caching for validated parameters. */
 class RequestContextImpl implements RequestContext {
-  /** Cache for validated path parameters. */
-  private readonly pathCache = new Map<string, unknown>();
-  /** Cache for validated query parameters. */
-  private readonly queryCache = new Map<string, unknown>();
-  /** Cache for validated body. */
-  private bodyCache: unknown = undefined;
-  /** Flag indicating if body has been validated. */
-  private bodyValidated = false;
+
 
   constructor(
     /** Express request object. */
@@ -133,14 +126,8 @@ class RequestContextImpl implements RequestContext {
     name: string,
     rawValue: unknown,
     validator: ParamValidator<T> | undefined,
-    cache: Map<string, unknown>,
     isRequired: boolean
   ): T | undefined {
-    // Check cache first
-    if (cache.has(name)) {
-      return cache.get(name) as T | undefined;
-    }
-
     try {
       let result: unknown;
       if (validator) {
@@ -152,13 +139,11 @@ class RequestContextImpl implements RequestContext {
           if (isRequired) {
             assertHttp(false, HTTP_BAD_REQUEST, `Missing required parameter: ${name}`);
           }
-          cache.set(name, undefined);
           return undefined;
         }
         result = rawValue;
       }
 
-      cache.set(name, result);
       return result as T;
     } catch (error) {
       if (error instanceof HttpError) throw error;
@@ -168,7 +153,7 @@ class RequestContextImpl implements RequestContext {
 
   path<T = string>(name: string, validator?: ParamValidator<T>): T {
     const rawValue = this.req.params[name] as string | undefined | null;
-    const result = this.validateParam(name, rawValue, validator, this.pathCache, true);
+    const result = this.validateParam(name, rawValue, validator, true);
     assertHttp(result !== undefined, HTTP_BAD_REQUEST, `Missing required path parameter: ${name}`);
     return result;
   }
@@ -177,14 +162,10 @@ class RequestContextImpl implements RequestContext {
     const parsedUrl = url.parse(this.req.url, true);
     const rawValue = parsedUrl.query[name];
     const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
-    return this.validateParam(name, value, validator, this.queryCache, false);
+    return this.validateParam(name, value, validator, false);
   }
 
   body<T>(validator: Assertion<T>): T {
-    if (this.bodyValidated) {
-      return this.bodyCache as T;
-    }
-
     const apiRequest = this.req.body;
 
     try {
@@ -202,8 +183,6 @@ class RequestContextImpl implements RequestContext {
         assertHttp(!errorMessage, HTTP_BAD_REQUEST, errorMessage || 'Request body validation failed');
       }
 
-      this.bodyCache = apiRequest;
-      this.bodyValidated = true;
       return apiRequest as T;
     } catch (error) {
       if (error instanceof HttpError) throw error;
