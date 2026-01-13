@@ -9,10 +9,10 @@ import {
   matches,
   min,
   minLength,
-  transform,
   range,
   RequestContext,
   toInt,
+  transform,
 } from '../src';
 import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
 
@@ -40,8 +40,8 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle POST requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.post('items', async ctx => ({ 
-        value: ctx.body({ name: assertString }).name 
+      routes.post('items', async ctx => ({
+        value: ctx.body({ name: assertString }).name,
       }));
 
       const response = await makeRequest('POST', '/items', { body: { name: 'Test' } });
@@ -51,8 +51,8 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle PUT requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.put('items/:id', async ctx => ({ 
-        value: ctx.req.params['id'] 
+      routes.put('items/:id', async ctx => ({
+        value: ctx.req.params['id'],
       }));
 
       const response = await makeRequest('PUT', '/items/123', { body: { name: 'Updated' } });
@@ -62,8 +62,8 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should handle PATCH requests at top-level path', async () => {
       const routes = getTestRoutes();
-      routes.patch('items/:id', async () => ({ 
-        value: 'none' 
+      routes.patch('items/:id', async () => ({
+        value: 'none',
       }));
 
       const response = await makeRequest('PATCH', '/items/456', { body: { name: 'Patched' } });
@@ -91,8 +91,8 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should return 400 for invalid request body', async () => {
       const routes = getTestRoutes();
-      routes.post('validate-test', async ctx => ({ 
-        value: ctx.body({ name: v => assertString(v, '400: name required') }).name 
+      routes.post('validate-test', async ctx => ({
+        value: ctx.body({ name: v => assertString(v, '400: name required') }).name,
       }));
 
       const response = await makeRequest('POST', '/validate-test', { body: { name: 1 } });
@@ -181,8 +181,8 @@ describe('Core + Auth E2E Integration', () => {
   describe('Parameter validation', () => {
     it('should validate path parameters with ctx.path()', async () => {
       const routes = getTestRoutes();
-      routes.get('validate-path/:id', async ctx => ({ 
-        id: ctx.path('id', transform(minLength(3, 'ID too short'))) 
+      routes.get('validate-path/:id', async ctx => ({
+        id: ctx.path('id', transform(minLength(3, 'ID too short'))),
       }));
 
       // Valid request
@@ -199,8 +199,8 @@ describe('Core + Auth E2E Integration', () => {
 
     it('should validate query parameters with ctx.query()', async () => {
       const routes = getTestRoutes();
-      routes.get('validate-query', async ctx => ({ 
-        page: ctx.query('page', transform(toInt('page must be a number'), min(1, 'page must be >= 1'))) 
+      routes.get('validate-query', async ctx => ({
+        page: ctx.query('page', transform(toInt('page must be a number'), min(1, 'page must be >= 1'))),
       }));
 
       // Valid request
@@ -231,7 +231,10 @@ describe('Core + Auth E2E Integration', () => {
       const routes = getTestRoutes();
       routes.get('validate-both/:id', async ctx => ({
         id: ctx.path('id', transform(matches(/^[a-z0-9]+$/, 'ID must be alphanumeric'))),
-        limit: ctx.query('limit', transform(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100'))),
+        limit: ctx.query(
+          'limit',
+          transform(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100')),
+        ),
       }));
 
       // Valid request

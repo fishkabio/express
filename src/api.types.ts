@@ -3,14 +3,6 @@ import { assertTruthy } from '@fishka/assertions';
 /** Validator function that validates and returns a typed value */
 export type ParamValidator<T> = (value: unknown) => T;
 
-/** Map of param name to type validator */
-export type ParamValidatorMap = Record<string, ParamValidator<unknown>>;
-
-/** Infer validated types from validator map */
-export type ValidatedParams<T extends ParamValidatorMap | undefined> = T extends ParamValidatorMap
-  ? { [K in keyof T]: ReturnType<T[K]> }
-  : Record<string, never>;
-
 export class HttpError extends Error {
   constructor(
     public readonly status: number,
@@ -61,12 +53,6 @@ export function assertHttp(value: unknown, status: number, message: string): ass
 export interface ApiResponse<ResponseEntity = unknown> {
   /** Result of the call. A single entity for non-paginated ${by-id} requests or an array for list queries. */
   result: ResponseEntity;
-  /**
-   * Unique ID of the request.
-   * Automatically added to every API response.
-   * May be passed via 'x-request-id' header from client.
-   */
-  requestId?: string;
   /**
    * Response status code. Same as HTTP response status.
    * Default: 200 for successful responses or 500 for internal server errors.

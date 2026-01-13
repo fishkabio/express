@@ -2,7 +2,7 @@ import { assertTruthy, truthy } from '@fishka/assertions';
 import express, { Express } from 'express';
 import http from 'http';
 import { AddressInfo } from 'net';
-import { createRouteTable, createTlsMiddleware, HTTP_INTERNAL_SERVER_ERROR } from '../src';
+import { createTlsMiddleware, HTTP_INTERNAL_SERVER_ERROR, RouteTable } from '../src';
 
 /**
  * Shared test server that is created once and reused across all e2e tests.
@@ -57,8 +57,8 @@ export function getTestApp(): Express {
 }
 
 /** Get a new route table for the shared app. */
-export function getTestRoutes(): ReturnType<typeof createRouteTable> {
-  return createRouteTable(getTestApp());
+export function getTestRoutes(): RouteTable {
+  return new RouteTable(getTestApp());
 }
 
 /** Get the port the test server is running on. */
@@ -83,7 +83,7 @@ export function getResponseBody(response: {
  */
 export function getApiResult<T = unknown>(response: { status: number; body: Record<string, unknown> | undefined }): T {
   const body = getResponseBody(response);
-  return body['result'] as T;
+  return body as T;
 }
 
 /** Makes HTTP requests to the test server. */

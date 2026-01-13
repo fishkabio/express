@@ -1,48 +1,41 @@
 import { getMessageFromError } from '@fishka/assertions';
 import { NextFunction } from 'express';
 import { ApiResponse, HttpError } from './api.types';
+import { HEADER_REQUEST_ID } from './http-headers';
 import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from './http-status-codes';
 import { getRequestLocalStorage } from './thread-local/thread-local-storage';
-import { wrapAsApiResponse } from './utils/conversion.utils';
+
 import { ExpressFunction, ExpressRequest, ExpressResponse } from './utils/express.utils';
 
 /**
  * Converts any error into a standardized API response format.
  * - HttpError: Uses the error's status code and message
  * - Other errors: Returns 500 with the error message or 'Internal error'
- * Attaches requestId from thread-local storage if available.
  */
 function buildApiResponse(error: unknown): ApiResponse & { status: number } {
-  const tls = getRequestLocalStorage();
-  const requestId = tls?.requestId;
   let response: ApiResponse & { status: number };
 
   if (error instanceof HttpError) {
     response = {
-      ...wrapAsApiResponse(undefined),
       error: error.message,
       status: error.status,
       details: error.details,
-    };
+    } as ApiResponse & { status: number };
   } else {
     const errorMessage = getMessageFromError(error, '');
     response = {
-      ...wrapAsApiResponse(undefined),
       error: errorMessage && errorMessage.length > 0 ? errorMessage : 'Internal error',
       status: HTTP_INTERNAL_SERVER_ERROR,
-    };
+    } as ApiResponse & { status: number };
   }
 
-  if (requestId) {
-    response.requestId = requestId;
-  }
   return response;
 }
 
 /**
  * @Internal
  * Wraps a route handler to catch and convert errors to API responses.
- * Applied automatically to all routes registered via createRouteTable().
+ * Applied automatically to all routes registered via RouteTable.
  *
  * Catches:
  * - Errors thrown in validators ($path, $query, $body)
@@ -60,6 +53,13 @@ export function catchRouteErrors(fn: ExpressFunction): ExpressFunction {
       if (apiResponse.status >= HTTP_INTERNAL_SERVER_ERROR) {
         console.error(`catchRouteErrors: ${req.path}`, error);
       }
+
+      // Добавляем requestId в заголовки, если он есть
+      const tls = getRequestLocalStorage();
+      if (tls?.requestId) {
+        res.setHeader(HEADER_REQUEST_ID, tls.requestId);
+      }
+
       res.status(apiResponse.status);
       res.send(apiResponse);
     }

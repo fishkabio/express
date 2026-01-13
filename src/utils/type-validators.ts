@@ -66,7 +66,10 @@ export function transform(...operators: Array<(value: never) => unknown>): Param
 export const toInt =
   (message?: string): ParamOperator<number> =>
   (value: string): number => {
-    assertTruthy(value !== undefined && value !== null && value !== '', message ?? 'Expected integer, got undefined or empty');
+    assertTruthy(
+      value !== undefined && value !== null && value !== '',
+      message ?? 'Expected integer, got undefined or empty',
+    );
     const num = Number(value);
     assertTruthy(Number.isInteger(num), message ?? `Expected integer, got '${value}'`);
     return num;
@@ -76,7 +79,10 @@ export const toInt =
 export const toNumber =
   (message?: string): ParamOperator<number> =>
   (value: string): number => {
-    assertTruthy(value !== undefined && value !== null && value !== '', message ?? 'Expected number, got undefined or empty');
+    assertTruthy(
+      value !== undefined && value !== null && value !== '',
+      message ?? 'Expected number, got undefined or empty',
+    );
     const num = Number(value);
     assertTruthy(!isNaN(num), message ?? `Expected number, got '${value}'`);
     return num;
@@ -86,7 +92,10 @@ export const toNumber =
 export const toBool =
   (message?: string): ParamOperator<boolean> =>
   (value: string): boolean => {
-    assertTruthy(value !== undefined && value !== null && value !== '', message ?? 'Expected boolean, got undefined or empty');
+    assertTruthy(
+      value !== undefined && value !== null && value !== '',
+      message ?? 'Expected boolean, got undefined or empty',
+    );
     assertTruthy(value === 'true' || value === 'false', message ?? `Expected 'true' or 'false', got '${value}'`);
     return value === 'true';
   };
@@ -182,9 +191,7 @@ export const map =
  * @example
  * transform(validator(s => s === 'valid' ? undefined : 'Invalid ID'))
  */
-export function validator<T>(
-  validateFn: (value: T) => string | undefined
-): (value: T) => T {
+export function validator<T>(validateFn: (value: T) => string | undefined): (value: T) => T {
   return (value: T): T => {
     const error = validateFn(value);
     if (error !== undefined) {

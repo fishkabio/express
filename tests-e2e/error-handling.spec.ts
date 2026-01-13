@@ -7,8 +7,8 @@ describe('Structured Error Handling', () => {
   describe('Validator Errors', () => {
     it('should return 400 when URL parameter validation fails', async () => {
       const routes = getTestRoutes();
-      routes.get('test-validation/:id', async ctx => ({ 
-        id: ctx.path('id', transform(validator(s => s === 'valid' ? undefined : 'Invalid ID'))) 
+      routes.get('test-validation/:id', async ctx => ({
+        id: ctx.path('id', transform(validator(s => (s === 'valid' ? undefined : 'Invalid ID')))),
       }));
 
       const response = await makeRequest('GET', '/test-validation/invalid');
@@ -168,7 +168,8 @@ describe('Structured Error Handling', () => {
       const response = await makeRequest('GET', '/test-null-error');
       // null error means "no error" in Express, should reach the route
       expect(response.status).toBe(200);
-      expect(response.body?.['result']).toEqual({ passed: true });
+      expect(response.body).toEqual({ passed: true });
+      expect(response.headers['x-request-id']).toBeDefined();
     });
   });
 

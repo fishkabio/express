@@ -1,15 +1,13 @@
 import { Assertion, getMessageFromError, ObjectAssertion, validateObject } from '@fishka/assertions';
 import * as url from 'url';
-import { ApiResponse, assertHttp, HttpError, ParamValidator } from './api.types';
+import { assertHttp, HttpError, ParamValidator } from './api.types';
 import { AuthUser } from './auth/auth.types';
 import { catchRouteErrors } from './error-handling';
+import { HEADER_REQUEST_ID } from './http-headers';
 import { HTTP_BAD_REQUEST, HTTP_OK } from './http-status-codes';
 import { getRequestLocalStorage } from './thread-local/thread-local-storage';
-import { wrapAsApiResponse } from './utils/conversion.utils';
-import { ExpressRequest, ExpressResponse, ExpressRouter } from './utils/express.utils';
 
-/** Express API allows handlers to return a response in the raw form. */
-export type ResponseOrValue<ResponseEntity> = ApiResponse<ResponseEntity> | ResponseEntity;
+import { ExpressRequest, ExpressResponse, ExpressRouter } from './utils/express.utils';
 
 /**
  * Generic middleware hook for endpoint execution.
@@ -68,7 +66,7 @@ export interface EndpointBase<Result = unknown> {
   /** Optional middleware to execute before the handler. */
   middlewares?: Array<EndpointMiddleware>;
   /** Handler function. Can be sync or async. */
-  run: (ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>;
+  run: (ctx: RequestContext) => Result | Promise<Result>;
 }
 
 /** Descriptor for GET list routes. */
@@ -100,8 +98,6 @@ export type RouteRegistrationInfo = (
 
 /** Implementation of RequestContext with caching for validated parameters. */
 class RequestContextImpl implements RequestContext {
-
-
   constructor(
     /** Express request object. */
     public readonly req: ExpressRequest,
@@ -126,7 +122,7 @@ class RequestContextImpl implements RequestContext {
     name: string,
     rawValue: unknown,
     validator: ParamValidator<T> | undefined,
-    isRequired: boolean
+    isRequired: boolean,
   ): T | undefined {
     try {
       let result: unknown;
@@ -191,29 +187,6 @@ class RequestContextImpl implements RequestContext {
   }
 }
 
-/** Registers a GET route. */
-export const mountGet = (
-  app: ExpressRouter,
-  path: string,
-  endpoint: GetEndpoint<unknown> | GetListEndpoint<unknown>,
-): void => mount(app, { method: 'get', endpoint, path });
-
-/** Registers a POST route. */
-export const mountPost = <Result>(app: ExpressRouter, path: string, endpoint: PostEndpoint<Result>): void =>
-  mount(app, { method: 'post', endpoint: endpoint as PostEndpoint<unknown>, path });
-
-/** Registers a PATCH route. */
-export const mountPatch = <Result>(app: ExpressRouter, path: string, endpoint: PatchEndpoint<Result>): void =>
-  mount(app, { method: 'patch', endpoint: endpoint as PatchEndpoint<unknown>, path });
-
-/** Registers a PUT route. */
-export const mountPut = <Result>(app: ExpressRouter, path: string, endpoint: PutEndpoint<Result>): void =>
-  mount(app, { method: 'put', endpoint: endpoint as PutEndpoint<unknown>, path });
-
-/** Registers a DELETE route. */
-export const mountDelete = (app: ExpressRouter, path: string, endpoint: DeleteEndpoint): void =>
-  mount(app, { method: 'delete', endpoint, path });
-
 /** Mounts a route with the given method, endpoint, and path. */
 export function mount(app: ExpressRouter, { method, endpoint, path }: RouteRegistrationInfo): void {
   const fullPath = path.startsWith('/') ? path : `/${path}`;
@@ -236,7 +209,7 @@ function createRouteHandler(
     | DeleteEndpoint,
 ) {
   return async (req: ExpressRequest, res: ExpressResponse, _next: unknown): Promise<void> => {
-    let result: ResponseOrValue<unknown>;
+    let result: unknown;
 
     switch (method) {
       case 'post':
@@ -251,16 +224,26 @@ function createRouteHandler(
         result = await executeGetEndpoint(endpoint as GetEndpoint<unknown>, req, res);
         break;
     }
-    const response = wrapAsApiResponse(result);
+    const response = result;
 
-    const tls = getRequestLocalStorage();
-    if (tls?.requestId) {
-      response.requestId = tls.requestId;
+    let status = HTTP_OK;
+    let responseToSend = response;
+
+    // Если response - это объект со свойством status, используем его
+    if (response && typeof response === 'object' && 'status' in response) {
+      const resp = response as { status?: number };
+      status = resp.status || HTTP_OK;
+      responseToSend = resp;
     }
 
-    response.status = response.status || HTTP_OK;
-    res.status(response.status);
-    res.send(response);
+    // Добавляем requestId в заголовки, если он есть
+    const tls = getRequestLocalStorage();
+    if (tls?.requestId) {
+      res.setHeader(HEADER_REQUEST_ID, tls.requestId);
+    }
+
+    res.status(status);
+    res.send(responseToSend);
   };
 }
 
@@ -272,7 +255,7 @@ async function executeGetEndpoint<ResponseResultType>(
   route: GetEndpoint<ResponseResultType>,
   req: ExpressRequest,
   res: ExpressResponse,
-): Promise<ResponseOrValue<ResponseResultType>> {
+): Promise<ResponseResultType> {
   const requestContext = new RequestContextImpl(req, res);
   return await executeWithMiddleware<RequestContext, ResponseResultType>(
     () => route.run(requestContext),
@@ -285,11 +268,7 @@ async function executeGetEndpoint<ResponseResultType>(
  * @Internal
  * Runs DELETE handler with optional middleware.
  */
-async function executeDeleteEndpoint(
-  route: DeleteEndpoint,
-  req: ExpressRequest,
-  res: ExpressResponse,
-): Promise<ResponseOrValue<void>> {
+async function executeDeleteEndpoint(route: DeleteEndpoint, req: ExpressRequest, res: ExpressResponse): Promise<void> {
   const requestContext = new RequestContextImpl(req, res);
   await executeWithMiddleware<RequestContext, void>(
     () => route.run(requestContext),
@@ -307,7 +286,7 @@ async function executeBodyEndpoint<ResponseResultType>(
   route: PostEndpoint<ResponseResultType> | PutEndpoint<ResponseResultType> | PatchEndpoint<ResponseResultType>,
   req: ExpressRequest,
   res: ExpressResponse,
-): Promise<ResponseOrValue<ResponseResultType>> {
+): Promise<ResponseResultType> {
   const requestContext = new RequestContextImpl(req, res);
   return await executeWithMiddleware<RequestContext, ResponseResultType>(
     () => route.run(requestContext),
@@ -321,17 +300,17 @@ async function executeBodyEndpoint<ResponseResultType>(
  * Executes handler with a middleware chain.
  */
 async function executeWithMiddleware<Context, Result>(
-  run: () => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>,
+  run: () => Result | Promise<Result>,
   middlewares: Array<EndpointMiddleware<Context>>,
   context: Context,
-): Promise<ResponseOrValue<Result>> {
-  const current = async (index: number): Promise<ResponseOrValue<Result>> => {
+): Promise<Result> {
+  const current = async (index: number): Promise<Result> => {
     if (index >= middlewares.length) {
       const result = await run();
-      return wrapAsApiResponse(result);
+      return result;
     }
     const middleware = middlewares[index];
-    return (await middleware(() => current(index + 1), context)) as ResponseOrValue<Result>;
+    return (await middleware(() => current(index + 1), context)) as Result;
   };
   return await current(0);
 }

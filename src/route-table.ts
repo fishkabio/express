@@ -1,17 +1,4 @@
-import {
-  DeleteEndpoint,
-  GetEndpoint,
-  mountDelete,
-  mountGet,
-  mountPatch,
-  mountPost,
-  mountPut,
-  PatchEndpoint,
-  PostEndpoint,
-  PutEndpoint,
-  RequestContext,
-  ResponseOrValue,
-} from './router';
+import { DeleteEndpoint, GetEndpoint, mount, PatchEndpoint, PostEndpoint, PutEndpoint, RequestContext } from './router';
 import { ExpressRouter } from './utils/express.utils';
 
 /**
@@ -25,14 +12,14 @@ export class RouteTable {
   get<Result>(path: string, endpoint: GetEndpoint<Result>): this;
 
   /** Register a GET endpoint with function shorthand. */
-  get<Result>(path: string, run: (ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>): this;
+  get<Result>(path: string, run: (ctx: RequestContext) => Result | Promise<Result>): this;
 
   get<Result>(
     path: string,
-    endpointOrRun: GetEndpoint<Result> | ((ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>),
+    endpointOrRun: GetEndpoint<Result> | ((ctx: RequestContext) => Result | Promise<Result>),
   ): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
-    mountGet(this.app, path, endpoint as GetEndpoint<unknown>);
+    mount(this.app, { method: 'get', endpoint: endpoint as GetEndpoint<unknown>, path });
     return this;
   }
 
@@ -40,14 +27,14 @@ export class RouteTable {
   post<Result = void>(path: string, endpoint: PostEndpoint<Result>): this;
 
   /** Register a POST endpoint with function shorthand. */
-  post<Result = void>(path: string, run: (ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>): this;
+  post<Result = void>(path: string, run: (ctx: RequestContext) => Result | Promise<Result>): this;
 
   post<Result = void>(
     path: string,
-    endpointOrRun: PostEndpoint<Result> | ((ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>),
+    endpointOrRun: PostEndpoint<Result> | ((ctx: RequestContext) => Result | Promise<Result>),
   ): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
-    mountPost(this.app, path, endpoint as PostEndpoint<unknown>);
+    mount(this.app, { method: 'post', endpoint: endpoint as PostEndpoint<unknown>, path });
     return this;
   }
 
@@ -55,14 +42,14 @@ export class RouteTable {
   patch<Result = void>(path: string, endpoint: PatchEndpoint<Result>): this;
 
   /** Register a PATCH endpoint with function shorthand. */
-  patch<Result = void>(path: string, run: (ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>): this;
+  patch<Result = void>(path: string, run: (ctx: RequestContext) => Result | Promise<Result>): this;
 
   patch<Result = void>(
     path: string,
-    endpointOrRun: PatchEndpoint<Result> | ((ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>),
+    endpointOrRun: PatchEndpoint<Result> | ((ctx: RequestContext) => Result | Promise<Result>),
   ): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
-    mountPatch(this.app, path, endpoint as PatchEndpoint<unknown>);
+    mount(this.app, { method: 'patch', endpoint: endpoint as PatchEndpoint<unknown>, path });
     return this;
   }
 
@@ -70,14 +57,14 @@ export class RouteTable {
   put<Result = void>(path: string, endpoint: PutEndpoint<Result>): this;
 
   /** Register a PUT endpoint with function shorthand. */
-  put<Result = void>(path: string, run: (ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>): this;
+  put<Result = void>(path: string, run: (ctx: RequestContext) => Result | Promise<Result>): this;
 
   put<Result = void>(
     path: string,
-    endpointOrRun: PutEndpoint<Result> | ((ctx: RequestContext) => ResponseOrValue<Result> | Promise<ResponseOrValue<Result>>),
+    endpointOrRun: PutEndpoint<Result> | ((ctx: RequestContext) => Result | Promise<Result>),
   ): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
-    mountPut(this.app, path, endpoint as PutEndpoint<unknown>);
+    mount(this.app, { method: 'put', endpoint: endpoint as PutEndpoint<unknown>, path });
     return this;
   }
 
@@ -87,21 +74,9 @@ export class RouteTable {
   /** Register a DELETE endpoint with function shorthand. */
   delete(path: string, run: (ctx: RequestContext) => void | Promise<void>): this;
 
-  delete(
-    path: string,
-    endpointOrRun: DeleteEndpoint | ((ctx: RequestContext) => void | Promise<void>),
-  ): this {
+  delete(path: string, endpointOrRun: DeleteEndpoint | ((ctx: RequestContext) => void | Promise<void>)): this {
     const endpoint = typeof endpointOrRun === 'function' ? { run: endpointOrRun } : endpointOrRun;
-    mountDelete(this.app, path, endpoint as DeleteEndpoint);
+    mount(this.app, { method: 'delete', endpoint: endpoint as DeleteEndpoint, path });
     return this;
   }
-}
-
-/**
- * Factory function to create a new route table.
- * @param app Express application instance
- * @returns RouteTable instance with fluent API
- */
-export function createRouteTable(app: ExpressRouter): RouteTable {
-  return new RouteTable(app);
 }

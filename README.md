@@ -12,17 +12,17 @@ npm install @fishka/express
 
 ```typescript
 import express from 'express';
-import { createRouteTable, transform, toInt } from '@fishka/express';
+import { RouteTable, transform, toInt } from '@fishka/express';
 import { assertString } from '@fishka/assertions';
 
 const app = express();
 app.use(express.json());
 
-const routes = createRouteTable(app);
+const routes = new RouteTable(app);
 
 // GET /users/:id - with typed path params
 routes.get('users/:id', async ctx => ({
-  id: ctx.path('id', transform(toInt())),  // number - validated inline
+  id: ctx.path('id', transform(toInt())), // number - validated inline
   name: 'John',
 }));
 
@@ -33,9 +33,9 @@ routes.get('users', async () => [
 ]);
 
 // POST /users - with body validation
-routes.post('users', async ctx => ({ 
+routes.post('users', async ctx => ({
   id: 1,
-  name: ctx.body({ name: v => assertString(v, 'name required') }).name
+  name: ctx.body({ name: v => assertString(v, 'name required') }).name,
 }));
 
 // DELETE /users/:id
@@ -52,11 +52,11 @@ Use `transform()` to validate and transform path/query parameters. All operators
 import { transform, toInt, minLength, matches, min, range, oneOf } from '@fishka/express';
 
 routes.get('users/:id', async ctx => ({
-  id: ctx.path('id', transform(toInt())),                      // string → number (required)
-  page: ctx.query('page', transform(toInt(), min(1))),         // number >= 1, optional
+  id: ctx.path('id', transform(toInt())), // string → number (required)
+  page: ctx.query('page', transform(toInt(), min(1))), // number >= 1, optional
   limit: ctx.query('limit', transform(toInt(), range(1, 100))), // number 1-100, optional
-  sort: ctx.query('sort', transform(oneOf('asc', 'desc'))),    // enum, optional
-  search: ctx.query('search', transform(minLength(3))),        // string min 3 chars, optional
+  sort: ctx.query('sort', transform(oneOf('asc', 'desc'))), // enum, optional
+  search: ctx.query('search', transform(minLength(3))), // string min 3 chars, optional
 }));
 ```
 
@@ -69,12 +69,14 @@ routes.get('users/:id', async ctx => ({
 ### Available Operators
 
 **Transformations (string → T):**
+
 - `toInt()` - parse to integer
 - `toNumber()` - parse to number
 - `toBool()` - parse 'true'/'false' to boolean
 - `oneOf('a', 'b')` - enum values
 
 **String validators:**
+
 - `minLength(n)` - minimum length
 - `maxLength(n)` - maximum length
 - `matches(/regex/)` - regex match
@@ -82,11 +84,13 @@ routes.get('users/:id', async ctx => ({
 - `lowercase` / `uppercase` - case transform
 
 **Number validators:**
+
 - `min(n)` - minimum value
 - `max(n)` - maximum value
 - `range(min, max)` - value range
 
 **Generic:**
+
 - `transform(...ops)` - chain of validators/transformers
 - `assert(predicate, msg)` - custom validation with predicate
 - `validator(fn)` - custom validator returning string|undefined
@@ -100,9 +104,9 @@ Query parameters are optional by default. Use `ctx.query()` without a validator 
 import { transform, toInt } from '@fishka/express';
 
 routes.get('users', async ctx => {
-  const page = ctx.query('page', transform(toInt())) ?? 1;  // number | undefined
-  const search = ctx.query('search');  // string | undefined
-  
+  const page = ctx.query('page', transform(toInt())) ?? 1; // number | undefined
+  const search = ctx.query('search'); // string | undefined
+
   return { page, search };
 });
 ```
@@ -157,7 +161,7 @@ Full initialization with TLS context, validation, and error handling:
 
 ```typescript
 import express from 'express';
-import { createRouteTable, createTlsMiddleware, catchAllMiddleware, transform, toInt } from '@fishka/express';
+import { RouteTable, createTlsMiddleware, catchAllMiddleware, transform, toInt } from '@fishka/express';
 
 const app = express();
 
@@ -168,12 +172,12 @@ app.use(express.json());
 app.use(createTlsMiddleware());
 
 // 3. Define routes with typed parameters
-const routes = createRouteTable(app);
+const routes = new RouteTable(app);
 
 routes.get('health', async () => ({ status: 'UP' }));
 
-routes.get('users/:id', async ctx => ({ 
-  id: ctx.path('id', transform(toInt())) 
+routes.get('users/:id', async ctx => ({
+  id: ctx.path('id', transform(toInt())),
 }));
 
 // 4. Error handler - catches middleware/parsing errors

@@ -5,6 +5,7 @@ export * from './auth/auth.utils';
 export * from './auth/bearer-auth-strategy';
 export * from './config';
 export * from './error-handling';
+export * from './http-headers';
 export * from './http-status-codes';
 export * from './rate-limit/in-memory-rate-limiter';
 export * from './rate-limit/rate-limit.types';
