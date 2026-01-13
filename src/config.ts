@@ -1,14 +1,23 @@
 export interface GlobalExpressApiConfig {
   /**
+   * Header name for request ID. If not set, request ID functionality is disabled.
+   * When set, enables request ID generation and propagation.
+   * Default: undefined (disabled)
+   */
+  requestIdHeader?: string;
+
+  /**
    * Whether to trust and use the request ID from the request header.
    * If true, the middleware will look for the request ID header and use it.
    * If false, a new UUID will always be generated.
+   * Only applies when requestIdHeader is set.
    * Default: true
    */
   trustRequestIdHeader: boolean;
 }
 
 const defaultConfig: GlobalExpressApiConfig = {
+  requestIdHeader: undefined,
   trustRequestIdHeader: true,
 };
 

@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto';
 import { NextFunction } from 'express';
 import { getExpressApiConfig } from '../config';
-import { HEADER_REQUEST_ID } from '../http-headers';
 import { ExpressFunction, ExpressRequest, ExpressResponse } from '../utils/express.utils';
 import { runWithRequestTlsData } from './thread-local-storage';
 
@@ -15,7 +14,15 @@ import { runWithRequestTlsData } from './thread-local-storage';
 export function createTlsMiddleware(): ExpressFunction {
   return async (req: ExpressRequest, _res: ExpressResponse, next: NextFunction): Promise<void> => {
     const config = getExpressApiConfig();
-    const headerId = config.trustRequestIdHeader ? req.headers[HEADER_REQUEST_ID] : undefined;
+    const headerName = config.requestIdHeader;
+
+    // If requestIdHeader is not set, skip request ID generation entirely
+    if (!headerName) {
+      next();
+      return;
+    }
+
+    const headerId = config.trustRequestIdHeader ? req.headers[headerName] : undefined;
     const existingId = (req as { requestId?: unknown }).requestId || headerId;
     const requestId = typeof existingId === 'string' ? existingId : randomUUID();
 

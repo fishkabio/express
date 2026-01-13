@@ -2,7 +2,7 @@ import { assertTruthy, truthy } from '@fishka/assertions';
 import express, { Express } from 'express';
 import http from 'http';
 import { AddressInfo } from 'net';
-import { createTlsMiddleware, HTTP_INTERNAL_SERVER_ERROR, RouteTable } from '../src';
+import { configureExpressApi, createTlsMiddleware, HTTP_INTERNAL_SERVER_ERROR, RouteTable } from '../src';
 
 /**
  * Shared test server that is created once and reused across all e2e tests.
@@ -20,6 +20,9 @@ export async function initializeTestServer(): Promise<void> {
   if (initialized) {
     return;
   }
+
+  // Configure request ID for tests (enabled by default for backward compatibility)
+  configureExpressApi({ requestIdHeader: 'x-request-id' });
 
   const app = express();
   app.use(express.json());

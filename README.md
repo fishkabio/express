@@ -169,6 +169,8 @@ const app = express();
 app.use(express.json());
 
 // 2. Initialize TLS context (Request IDs, etc.)
+// Note: Request ID functionality is disabled by default.
+// To enable it, call configureExpressApi({ requestIdHeader: 'x-request-id' }) first.
 app.use(createTlsMiddleware());
 
 // 3. Define routes with typed parameters
@@ -184,6 +186,26 @@ routes.get('users/:id', async ctx => ({
 app.use(catchAllMiddleware);
 
 app.listen(3000);
+```
+
+## Configuration
+
+You can configure global settings using `configureExpressApi`:
+
+```typescript
+import { configureExpressApi } from '@fishka/express';
+
+// Request ID configuration (disabled by default)
+configureExpressApi({
+  // Enable request ID with custom header name
+  requestIdHeader: 'x-request-id', // or 'x-correlation-id', 'trace-id', etc.
+
+  // Whether to trust request ID from client headers
+  trustRequestIdHeader: true, // default: true
+});
+
+// By default, request ID functionality is disabled.
+// To enable it, you must set requestIdHeader.
 ```
 
 ## Process Handlers

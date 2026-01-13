@@ -2,8 +2,8 @@ import { Assertion, getMessageFromError, ObjectAssertion, validateObject } from 
 import * as url from 'url';
 import { assertHttp, HttpError, ParamValidator } from './api.types';
 import { AuthUser } from './auth/auth.types';
+import { getExpressApiConfig } from './config';
 import { catchRouteErrors } from './error-handling';
-import { HEADER_REQUEST_ID } from './http-headers';
 import { HTTP_BAD_REQUEST, HTTP_OK } from './http-status-codes';
 import { getRequestLocalStorage } from './thread-local/thread-local-storage';
 
@@ -236,10 +236,11 @@ function createRouteHandler(
       responseToSend = resp;
     }
 
-    // Добавляем requestId в заголовки, если он есть
+    // Добавляем requestId в заголовки, если он есть и функция включена
     const tls = getRequestLocalStorage();
-    if (tls?.requestId) {
-      res.setHeader(HEADER_REQUEST_ID, tls.requestId);
+    const headerName = getExpressApiConfig().requestIdHeader;
+    if (tls?.requestId && headerName) {
+      res.setHeader(headerName, tls.requestId);
     }
 
     res.status(status);

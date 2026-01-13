@@ -1,7 +1,7 @@
 import { getMessageFromError } from '@fishka/assertions';
 import { NextFunction } from 'express';
 import { ApiResponse, HttpError } from './api.types';
-import { HEADER_REQUEST_ID } from './http-headers';
+import { getExpressApiConfig } from './config';
 import { HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR } from './http-status-codes';
 import { getRequestLocalStorage } from './thread-local/thread-local-storage';
 
@@ -54,10 +54,11 @@ export function catchRouteErrors(fn: ExpressFunction): ExpressFunction {
         console.error(`catchRouteErrors: ${req.path}`, error);
       }
 
-      // Добавляем requestId в заголовки, если он есть
+      // Добавляем requestId в заголовки, если он есть и функция включена
       const tls = getRequestLocalStorage();
-      if (tls?.requestId) {
-        res.setHeader(HEADER_REQUEST_ID, tls.requestId);
+      const headerName = getExpressApiConfig().requestIdHeader;
+      if (tls?.requestId && headerName) {
+        res.setHeader(headerName, tls.requestId);
       }
 
       res.status(apiResponse.status);
