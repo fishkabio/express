@@ -125,19 +125,19 @@ class RequestContextImpl implements RequestContext {
   ): T | undefined {
     try {
       let result: unknown;
+      
+      // Check for missing required parameters before calling validator
+      if (isRequired && (rawValue === undefined || rawValue === null || rawValue === '')) {
+        assertHttp(false, HTTP_BAD_REQUEST, `Missing required parameter: ${name}`);
+      }
+      
       if (validator) {
-        // For required parameters, check if value is missing before validating
-        if (isRequired && (rawValue === undefined || rawValue === null || rawValue === '')) {
-          assertHttp(false, HTTP_BAD_REQUEST, `Missing required parameter: ${name}`);
-        }
         // Pass value to validator even if it's undefined/null/empty
         result = validator(rawValue);
       } else {
         // Without validator
         if (rawValue === undefined || rawValue === null || rawValue === '') {
-          if (isRequired) {
-            assertHttp(false, HTTP_BAD_REQUEST, `Missing required parameter: ${name}`);
-          }
+          // Already checked for required parameters above
           return undefined;
         }
         result = rawValue;
@@ -157,22 +157,13 @@ class RequestContextImpl implements RequestContext {
     return result;
   }
 
-  query<T = string>(name: string, validator?: ParamValidator<T>): T | undefined {
-    // TEST: Throw exception before validateParam - should crash backend
-    if (name === 'names' || name === 'from' || name === 'to') {
-      throw new Error(`Test crash in ctx.query() for parameter: ${name}`);
-    }
-    
+  query<T = string>(name: string, validator?: ParamValidator<T>): T {
     const parsedUrl = url.parse(this.req.originalUrl, true);
     const rawValue = parsedUrl.query[name];
     const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
-    // If validator is provided, parameter is required (like path parameters)
-    const isRequired = validator !== undefined;
-    const result = this.validateParam(name, value, validator, isRequired);
-    // For required parameters (with validator), ensure we don't return undefined
-    if (isRequired) {
-      assertHttp(result !== undefined, HTTP_BAD_REQUEST, `Missing required query parameter: ${name}`);
-    }
+    // Query parameters are always required (like path parameters)
+    const result = this.validateParam(name, value, validator, true);
+    assertHttp(result !== undefined, HTTP_BAD_REQUEST, `Missing required query parameter: ${name}`);
     return result;
   }
 

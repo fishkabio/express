@@ -135,7 +135,7 @@ describe('Query parameters tests', () => {
     expect(response.body).toEqual({ view: 'compact', page: '1' });
   });
 
-  it('should handle optional query parameters correctly', async () => {
+  it('should handle query parameters correctly', async () => {
     const app = getTestApp();
     
     mount(app, {
@@ -145,7 +145,7 @@ describe('Query parameters tests', () => {
         run: async ctx => ({
           q: ctx.query('q'),
           page: ctx.query('page'),
-          // page is optional, q is required by validator
+          // Both parameters are required
         })
       }
     });
@@ -155,10 +155,10 @@ describe('Query parameters tests', () => {
     expect(response1.status).toBe(HTTP_OK);
     expect(response1.body).toEqual({ q: 'test', page: '2' });
 
-    // Test with only required parameter
+    // Test with missing parameter - should fail
     const response2 = await makeRequest('GET', '/search?q=test');
-    expect(response2.status).toBe(HTTP_OK);
-    expect(response2.body).toEqual({ q: 'test', page: undefined });
+    expect(response2.status).toBe(HTTP_BAD_REQUEST);
+    expect(response2.body?.['error']).toContain('Missing required parameter: page');
   });
 
   it('should handle array query parameters', async () => {
@@ -275,12 +275,11 @@ describe('Query parameters tests', () => {
       }
     });
 
+    // Empty string parameter should be treated as missing (BAD_REQUEST)
     const response = await makeRequest('GET', '/test-empty-param?empty=');
     
-    expect(response.status).toBe(HTTP_OK);
-    // Empty string parameter should be undefined (based on validateParam logic)
-    expect(response.body?.['isEmptyUndefined']).toBe(true);
-    expect(response.body?.['isMissingUndefined']).toBe(true);
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(response.body?.['error']).toContain('Missing required parameter: empty');
   });
 
   it('should test what happens with special characters in query params', async () => {

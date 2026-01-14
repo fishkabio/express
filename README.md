@@ -60,12 +60,13 @@ routes.get('users/:id', async ctx => ({
 }));
 ```
 
-### Without Validators
+### Parameter Requirements
 
 - `ctx.path('name')` - returns string (throws 400 if missing)
-- `ctx.query('name')` - returns string | undefined (returns undefined if missing/empty)
+- `ctx.query('name')` - returns string (throws 400 if missing/empty)
 - `ctx.query('name', validator)` - returns validated value (throws 400 if missing/empty/invalid)
-- Validators receive raw values (including undefined/null/empty) and can enforce requiredness
+- All parameters are required - missing or empty values throw BAD_REQUEST
+- Validators receive raw values (including undefined/null/empty) and can enforce additional validation
 
 ### Available Operators
 
@@ -97,22 +98,24 @@ routes.get('users/:id', async ctx => ({
 - `validator(fn)` - custom validator returning string|undefined
 - `map(fn)` - transform value
 
-### Required vs Optional Parameters
+### All Parameters Are Required
 
 - **Path parameters** are always required - `ctx.path()` throws 400 if missing
-- **Query parameters without validators** are optional - `ctx.query('name')` returns `string | undefined`
-- **Query parameters with validators** are required - `ctx.query('name', validator)` throws 400 if missing/empty
+- **Query parameters** are always required - `ctx.query()` throws 400 if missing/empty
+- **Validators** transform and validate parameter values
 
-For optional query parameters with validation, provide a default value:
+For parameters that should have default values when missing, handle them at the application level or use the `optional()` wrapper:
 
 ```typescript
-import { transform, toInt } from '@fishka/express';
+import { transform, toInt, optional } from '@fishka/express';
 
 routes.get('users', async ctx => {
-  const page = ctx.query('page', transform(toInt())) ?? 1; // number, defaults to 1 if missing
-  const search = ctx.query('search'); // string | undefined
+  // Using optional() wrapper for parameters with default values
+  const page = ctx.query('page', optional(transform(toInt()))) ?? 1;
+  // All parameters are required by default
+  const search = ctx.query('search');
 
-  return { page, search };
+  return { page: page ?? 1, search };
 });
 ```
 

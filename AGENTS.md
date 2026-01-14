@@ -14,6 +14,8 @@
 
 - Avoid using range or contains-like comparisons in tests. Make exact value testing if possible.
 
+- Do not check in tests what is already checked and guaranteed by TypeScript compiler. 
+
 - Avoid creation of excessive MD files unless asked.
 
 - If you decide to test an issue, consider creating a standard test for the project that can be included into
