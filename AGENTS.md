@@ -4,7 +4,7 @@
 
 - Try to avoid using any. Use unknown in TypeScript.
 
-- Comment format for public classes/methods/fields: /**..... */. Comments should end with a dot.
+- Comment format for public classes/methods/fields: /\*_..... _/. Comments should end with a dot.
 
 - Function/method names should start with a verb. Their comments too.
 
@@ -14,7 +14,7 @@
 
 - Avoid using range or contains-like comparisons in tests. Make exact value testing if possible.
 
-- Do not check in tests what is already checked and guaranteed by TypeScript compiler. 
+- Do not check in tests what is already checked and guaranteed by TypeScript compiler.
 
 - Avoid creation of excessive MD files unless asked.
 

@@ -169,10 +169,8 @@ export const range =
     return value;
   };
 
-// Generic operators
-
 /** Adds custom validation with predicate */
-export const assert =
+export const check =
   <T>(predicate: (value: T) => boolean, message: string): Operator<T> =>
   (value: T): T => {
     assertTruthy(predicate(value), message);

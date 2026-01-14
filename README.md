@@ -94,7 +94,7 @@ routes.get('users/:id', async ctx => ({
 **Generic:**
 
 - `transform(...ops)` - chain of validators/transformers
-- `assert(predicate, msg)` - custom validation with predicate
+- `check(predicate, msg)` - custom validation with predicate
 - `validator(fn)` - custom validator returning string|undefined
 - `map(fn)` - transform value
 
