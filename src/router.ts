@@ -1,4 +1,4 @@
-import { Assertion, getMessageFromError, ObjectAssertion, validateObject } from '@fishka/assertions';
+import { Assertion, getMessageFromError, ObjectAssertion, truthy, validateObject } from '@fishka/assertions';
 import * as url from 'url';
 import { assertHttp, HttpError, ParamValidator } from './api.types';
 import { AuthUser } from './auth/auth.types';
@@ -109,40 +109,10 @@ class RequestContextImpl implements RequestContext {
     public readonly state: Map<string, unknown> = new Map(),
   ) {}
 
-  /**
-   * Validates a parameter with optional validator and caching.
-   * @param name Parameter name.
-   * @param rawValue Raw parameter value from request.
-   * @param validator Optional validator function.
-   * @param isRequired Whether parameter is required (path=true, query=false).
-   * @returns Validated value or undefined for optional missing parameters.
-   */
-  private validateParam<T>(
-    name: string,
-    rawValue: unknown,
-    validator: ParamValidator<T> | undefined,
-    isRequired: boolean,
-  ): T | undefined {
+  /** Validates a parameter with optional validator and caching. */
+  private validateParam<T>(name: string, value: unknown, validator: ParamValidator<T> | undefined): T {
     try {
-      let result: unknown;
-
-      // Check for missing required parameters before calling validator
-      if (isRequired && (rawValue === undefined || rawValue === null || rawValue === '')) {
-        assertHttp(false, HTTP_BAD_REQUEST, `Missing required parameter: ${name}`);
-      }
-
-      if (validator) {
-        // Pass value to validator even if it's undefined/null/empty
-        result = validator(rawValue);
-      } else {
-        // Without validator
-        if (rawValue === undefined || rawValue === null || rawValue === '') {
-          // Already checked for required parameters above
-          return undefined;
-        }
-        result = rawValue;
-      }
-
+      const result = validator ? validator(value) : truthy(value, `Missing required parameter: ${name}`);
       return result as T;
     } catch (error) {
       if (error instanceof HttpError) throw error;
@@ -152,19 +122,14 @@ class RequestContextImpl implements RequestContext {
 
   path<T = string>(name: string, validator?: ParamValidator<T>): T {
     const rawValue = this.req.params[name] as string | undefined | null;
-    const result = this.validateParam(name, rawValue, validator, true);
-    assertHttp(result !== undefined, HTTP_BAD_REQUEST, `Missing required path parameter: ${name}`);
-    return result;
+    return this.validateParam(name, rawValue, validator);
   }
 
   query<T = string>(name: string, validator?: ParamValidator<T>): T {
     const parsedUrl = url.parse(this.req.originalUrl, true);
     const rawValue = parsedUrl.query[name];
     const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
-    // Query parameters are always required (like path parameters)
-    const result = this.validateParam(name, value, validator, true);
-    assertHttp(result !== undefined, HTTP_BAD_REQUEST, `Missing required query parameter: ${name}`);
-    return result;
+    return this.validateParam(name, value, validator);
   }
 
   body<T>(validator: Assertion<T>): T {

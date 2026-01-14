@@ -7,12 +7,12 @@ import { assertTruthy } from '@fishka/assertions';
 import { ParamValidator } from '../api.types';
 
 /** Makes validator optional - returns undefined if value missing */
-export function optional<T>(validator: ParamValidator<T>): ParamValidator<T | undefined> {
+export function optional<T>(validator?: ParamValidator<T>): ParamValidator<T | undefined> {
   return (value: unknown): T | undefined => {
     if (value === undefined || value === null || value === '') {
       return undefined;
     }
-    return validator(value);
+    return validator ? validator(value) : (value as T | undefined);
   };
 }
 
