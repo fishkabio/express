@@ -41,10 +41,10 @@ export interface RequestContext {
    * Get and validate a query parameter.
    * @param name - Name of the query parameter
    * @param validator - Optional validator. If not provided, returns the raw string value or undefined.
-   * @returns Validated value of type T, or undefined if parameter is not present
+   * @returns Validated value of type T.
    * @throws {HttpError} 400 Bad Request if validation fails
    */
-  query<T = string>(name: string, validator?: ParamValidator<T>): T | undefined;
+  query<T = string>(name: string, validator?: ParamValidator<T>): T;
 
   /**
    * Get and validate the request body.
@@ -125,12 +125,12 @@ class RequestContextImpl implements RequestContext {
   ): T | undefined {
     try {
       let result: unknown;
-      
+
       // Check for missing required parameters before calling validator
       if (isRequired && (rawValue === undefined || rawValue === null || rawValue === '')) {
         assertHttp(false, HTTP_BAD_REQUEST, `Missing required parameter: ${name}`);
       }
-      
+
       if (validator) {
         // Pass value to validator even if it's undefined/null/empty
         result = validator(rawValue);
