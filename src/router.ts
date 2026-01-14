@@ -155,7 +155,7 @@ class RequestContextImpl implements RequestContext {
   }
 
   query<T = string>(name: string, validator?: ParamValidator<T>): T | undefined {
-    const parsedUrl = url.parse(this.req.url, true);
+    const parsedUrl = url.parse(this.req.originalUrl, true);
     const rawValue = parsedUrl.query[name];
     const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
     return this.validateParam(name, value, validator, false);
