@@ -224,7 +224,7 @@ describe('Core + Auth E2E Integration', () => {
       const invalidResponse3 = await makeRequest('GET', '/validate-query');
       expect(invalidResponse3.status).toBe(400);
       const errorBody3 = invalidResponse3.body as { error: string };
-      expect(errorBody3.error).toContain('Missing required parameter: page');
+      expect(errorBody3.error).toContain('Parameter validation failed: page. Expected string, got undefined');
     });
 
     it('should validate both path and query parameters together', async () => {

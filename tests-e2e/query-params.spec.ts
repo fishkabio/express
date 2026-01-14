@@ -1,17 +1,9 @@
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import express from 'express';
 import { assertHttp, HTTP_BAD_REQUEST, HTTP_OK, mount } from '../src';
-import { getTestApp, initializeTestServer, makeRequest, teardownTestServer } from './test-setup';
+import { getTestApp, makeRequest } from './test-setup';
 
 describe('Query parameters tests', () => {
-  beforeAll(async () => {
-    await initializeTestServer();
-  });
-
-  afterAll(async () => {
-    await teardownTestServer();
-  });
-
   it('should handle query parameters in simple routes', async () => {
     const app = getTestApp();
 
@@ -223,9 +215,9 @@ describe('Query parameters tests', () => {
         run: async ctx => {
           // With validators, parameters are required
           // ctx.query() will throw BAD_REQUEST if parameters are missing
-          const names = ctx.query('names', (value: unknown) => String(value));
-          const from = ctx.query('from', (value: unknown) => String(value));
-          const to = ctx.query('to', (value: unknown) => String(value));
+          const names = ctx.query('names');
+          const from = ctx.query('from');
+          const to = ctx.query('to');
 
           // These lines are reached only if all parameters are present
           return {
@@ -323,10 +315,7 @@ describe('Query parameters tests', () => {
       path: 'test-required',
       endpoint: {
         run: async ctx => {
-          // Parameter with validator should be required
-          const param = ctx.query('requiredParam', (value: unknown) => String(value));
-
-          // This line should not be reached if parameter is missing
+          const param = ctx.query('requiredParam');
           return { param };
         },
       },
@@ -347,8 +336,7 @@ describe('Query parameters tests', () => {
       path: 'test-required-present',
       endpoint: {
         run: async ctx => {
-          const param = ctx.query('requiredParam', (value: unknown) => String(value));
-
+          const param = ctx.query('requiredParam');
           return { param };
         },
       },
@@ -368,18 +356,14 @@ describe('Query parameters tests', () => {
       path: 'compare/:pathParam',
       endpoint: {
         run: async ctx => {
-          // Both should behave the same way with validators
-          const pathParam = ctx.path('pathParam', (value: unknown) => String(value));
-          const queryParam = ctx.query('queryParam', (value: unknown) => String(value));
-
+          const pathParam = ctx.path('pathParam');
+          const queryParam = ctx.query('queryParam');
           return { pathParam, queryParam };
         },
       },
     });
 
-    // Missing query parameter should fail (like path parameter)
     const response = await makeRequest('GET', '/compare/value');
-
     expect(response.status).toBe(HTTP_BAD_REQUEST);
     expect(response.body?.['error']).toContain('Missing required parameter: queryParam');
   });
@@ -392,8 +376,7 @@ describe('Query parameters tests', () => {
       path: 'test-empty-string-required',
       endpoint: {
         run: async ctx => {
-          const param = ctx.query('param', (value: unknown) => String(value));
-
+          const param = ctx.query('param');
           return { param };
         },
       },

@@ -1,17 +1,9 @@
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import express from 'express';
 import { assertHttp, HTTP_BAD_REQUEST, HTTP_OK, mount } from '../src';
-import { getTestApp, initializeTestServer, makeRequest, teardownTestServer } from './test-setup';
+import { getTestApp, makeRequest } from './test-setup';
 
 describe('Path parameters tests', () => {
-  beforeAll(async () => {
-    await initializeTestServer();
-  });
-
-  afterAll(async () => {
-    await teardownTestServer();
-  });
-
   it('should handle simple path parameters', async () => {
     const app = getTestApp();
 

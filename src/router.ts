@@ -116,7 +116,7 @@ class RequestContextImpl implements RequestContext {
       return result as T;
     } catch (error) {
       if (error instanceof HttpError) throw error;
-      throw new HttpError(HTTP_BAD_REQUEST, getMessageFromError(error));
+      throw new HttpError(HTTP_BAD_REQUEST, `Parameter validation failed: ${name}. ${getMessageFromError(error)}`);
     }
   }
 
