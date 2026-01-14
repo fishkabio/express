@@ -53,10 +53,10 @@ import { transform, toInt, minLength, matches, min, range, oneOf } from '@fishka
 
 routes.get('users/:id', async ctx => ({
   id: ctx.path('id', transform(toInt())), // string → number (required)
-  page: ctx.query('page', transform(toInt(), min(1))), // number >= 1, optional
-  limit: ctx.query('limit', transform(toInt(), range(1, 100))), // number 1-100, optional
-  sort: ctx.query('sort', transform(oneOf('asc', 'desc'))), // enum, optional
-  search: ctx.query('search', transform(minLength(3))), // string min 3 chars, optional
+  page: ctx.query('page', transform(toInt(), min(1))), // number >= 1, required (throws 400 if missing)
+  limit: ctx.query('limit', transform(toInt(), range(1, 100))), // number 1-100, required (throws 400 if missing)
+  sort: ctx.query('sort', transform(oneOf('asc', 'desc'))), // enum, required (throws 400 if missing)
+  search: ctx.query('search', transform(minLength(3))), // string min 3 chars, required (throws 400 if missing)
 }));
 ```
 
@@ -64,6 +64,7 @@ routes.get('users/:id', async ctx => ({
 
 - `ctx.path('name')` - returns string (throws 400 if missing)
 - `ctx.query('name')` - returns string | undefined (returns undefined if missing/empty)
+- `ctx.query('name', validator)` - returns validated value (throws 400 if missing/empty/invalid)
 - Validators receive raw values (including undefined/null/empty) and can enforce requiredness
 
 ### Available Operators
@@ -96,15 +97,19 @@ routes.get('users/:id', async ctx => ({
 - `validator(fn)` - custom validator returning string|undefined
 - `map(fn)` - transform value
 
-### Optional Parameters
+### Required vs Optional Parameters
 
-Query parameters are optional by default. Use `ctx.query()` without a validator to get optional string values:
+- **Path parameters** are always required - `ctx.path()` throws 400 if missing
+- **Query parameters without validators** are optional - `ctx.query('name')` returns `string | undefined`
+- **Query parameters with validators** are required - `ctx.query('name', validator)` throws 400 if missing/empty
+
+For optional query parameters with validation, provide a default value:
 
 ```typescript
 import { transform, toInt } from '@fishka/express';
 
 routes.get('users', async ctx => {
-  const page = ctx.query('page', transform(toInt())) ?? 1; // number | undefined
+  const page = ctx.query('page', transform(toInt())) ?? 1; // number, defaults to 1 if missing
   const search = ctx.query('search'); // string | undefined
 
   return { page, search };

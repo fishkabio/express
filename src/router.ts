@@ -114,7 +114,6 @@ class RequestContextImpl implements RequestContext {
    * @param name Parameter name.
    * @param rawValue Raw parameter value from request.
    * @param validator Optional validator function.
-   * @param cache Cache map for this parameter type.
    * @param isRequired Whether parameter is required (path=true, query=false).
    * @returns Validated value or undefined for optional missing parameters.
    */
@@ -127,6 +126,10 @@ class RequestContextImpl implements RequestContext {
     try {
       let result: unknown;
       if (validator) {
+        // For required parameters, check if value is missing before validating
+        if (isRequired && (rawValue === undefined || rawValue === null || rawValue === '')) {
+          assertHttp(false, HTTP_BAD_REQUEST, `Missing required parameter: ${name}`);
+        }
         // Pass value to validator even if it's undefined/null/empty
         result = validator(rawValue);
       } else {
@@ -155,10 +158,22 @@ class RequestContextImpl implements RequestContext {
   }
 
   query<T = string>(name: string, validator?: ParamValidator<T>): T | undefined {
+    // TEST: Throw exception before validateParam - should crash backend
+    if (name === 'names' || name === 'from' || name === 'to') {
+      throw new Error(`Test crash in ctx.query() for parameter: ${name}`);
+    }
+    
     const parsedUrl = url.parse(this.req.originalUrl, true);
     const rawValue = parsedUrl.query[name];
     const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
-    return this.validateParam(name, value, validator, false);
+    // If validator is provided, parameter is required (like path parameters)
+    const isRequired = validator !== undefined;
+    const result = this.validateParam(name, value, validator, isRequired);
+    // For required parameters (with validator), ensure we don't return undefined
+    if (isRequired) {
+      assertHttp(result !== undefined, HTTP_BAD_REQUEST, `Missing required query parameter: ${name}`);
+    }
+    return result;
   }
 
   body<T>(validator: Assertion<T>): T {
@@ -307,8 +322,7 @@ async function executeWithMiddleware<Context, Result>(
 ): Promise<Result> {
   const current = async (index: number): Promise<Result> => {
     if (index >= middlewares.length) {
-      const result = await run();
-      return result;
+      return run();
     }
     const middleware = middlewares[index];
     return (await middleware(() => current(index + 1), context)) as Result;

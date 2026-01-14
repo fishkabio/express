@@ -211,4 +211,196 @@ describe('Query parameters tests', () => {
     const invalidResponse = await makeRequest('GET', '/validated?page=abc');
     expect(invalidResponse.status).toBe(HTTP_BAD_REQUEST);
   });
+
+  it('should reproduce the bug from bug report: ctx.query() with validators throws BAD_REQUEST for missing parameters', async () => {
+    const app = getTestApp();
+    
+    // Create a monitoring endpoint similar to the bug report
+    mount(app, {
+      method: 'get',
+      path: 'api/monitoring/events',
+      endpoint: {
+        run: async ctx => {
+          // With validators, parameters are required
+          // ctx.query() will throw BAD_REQUEST if parameters are missing
+          const names = ctx.query('names', (value: unknown) => String(value));
+          const from = ctx.query('from', (value: unknown) => String(value));
+          const to = ctx.query('to', (value: unknown) => String(value));
+          
+          // These lines are reached only if all parameters are present
+          return {
+            events: [],
+            params: { names, from, to }
+          };
+        }
+      }
+    });
+
+    // Test 1: With all parameters - should work
+    const response1 = await makeRequest('GET', '/api/monitoring/events?names=test&from=2026-01-14&to=2026-01-15');
+    expect(response1.status).toBe(HTTP_OK);
+    expect(response1.body).toEqual({
+      events: [],
+      params: {
+        names: 'test',
+        from: '2026-01-14',
+        to: '2026-01-15'
+      }
+    });
+
+    // Test 2: Missing one parameter - should throw BAD_REQUEST
+    const response2 = await makeRequest('GET', '/api/monitoring/events?names=test&from=2026-01-14');
+    expect(response2.status).toBe(HTTP_BAD_REQUEST);
+    expect(response2.body?.['error']).toContain('Missing required parameter: to');
+  });
+
+  it('should test edge case with empty string query parameters', async () => {
+    const app = getTestApp();
+    
+    mount(app, {
+      method: 'get',
+      path: 'test-empty-param',
+      endpoint: {
+        run: async ctx => {
+          const emptyParam = ctx.query('empty');
+          const missingParam = ctx.query('missing');
+          
+          return {
+            emptyParam,
+            missingParam,
+            isEmptyUndefined: emptyParam === undefined,
+            isMissingUndefined: missingParam === undefined
+          };
+        }
+      }
+    });
+
+    const response = await makeRequest('GET', '/test-empty-param?empty=');
+    
+    expect(response.status).toBe(HTTP_OK);
+    // Empty string parameter should be undefined (based on validateParam logic)
+    expect(response.body?.['isEmptyUndefined']).toBe(true);
+    expect(response.body?.['isMissingUndefined']).toBe(true);
+  });
+
+  it('should test what happens with special characters in query params', async () => {
+    const app = getTestApp();
+    
+    mount(app, {
+      method: 'get',
+      path: 'test-special',
+      endpoint: {
+        run: async ctx => {
+          const param1 = ctx.query('param1');
+          const param2 = ctx.query('param2');
+          const param3 = ctx.query('param3');
+          
+          return {
+            param1,
+            param2,
+            param3
+          };
+        }
+      }
+    });
+
+    const response = await makeRequest('GET', '/test-special?param1=value+with+spaces&param2=value%20with%20encoded&param3=special@chars.com');
+    
+    expect(response.status).toBe(HTTP_OK);
+    // Note: '+' gets decoded to space by URL parsing
+    expect(response.body?.['param1']).toBe('value with spaces');
+    expect(response.body?.['param2']).toBe('value with encoded');
+    expect(response.body?.['param3']).toBe('special@chars.com');
+  });
+
+  it('should throw BAD_REQUEST when required query parameter with validator is missing', async () => {
+    const app = getTestApp();
+    
+    mount(app, {
+      method: 'get',
+      path: 'test-required',
+      endpoint: {
+        run: async ctx => {
+          // Parameter with validator should be required
+          const param = ctx.query('requiredParam', (value: unknown) => String(value));
+          
+          // This line should not be reached if parameter is missing
+          return { param };
+        }
+      }
+    });
+
+    // Request without parameter should fail
+    const response = await makeRequest('GET', '/test-required');
+    
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(response.body?.['error']).toContain('Missing required parameter: requiredParam');
+  });
+
+  it('should work when required query parameter with validator is provided', async () => {
+    const app = getTestApp();
+    
+    mount(app, {
+      method: 'get',
+      path: 'test-required-present',
+      endpoint: {
+        run: async ctx => {
+          const param = ctx.query('requiredParam', (value: unknown) => String(value));
+          
+          return { param };
+        }
+      }
+    });
+
+    const response = await makeRequest('GET', '/test-required-present?requiredParam=value');
+    
+    expect(response.status).toBe(HTTP_OK);
+    expect(response.body?.['param']).toBe('value');
+  });
+
+  it('should be consistent with path() method behavior for required parameters', async () => {
+    const app = getTestApp();
+    
+    mount(app, {
+      method: 'get',
+      path: 'compare/:pathParam',
+      endpoint: {
+        run: async ctx => {
+          // Both should behave the same way with validators
+          const pathParam = ctx.path('pathParam', (value: unknown) => String(value));
+          const queryParam = ctx.query('queryParam', (value: unknown) => String(value));
+          
+          return { pathParam, queryParam };
+        }
+      }
+    });
+
+    // Missing query parameter should fail (like path parameter)
+    const response = await makeRequest('GET', '/compare/value');
+    
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(response.body?.['error']).toContain('Missing required parameter: queryParam');
+  });
+
+  it('should handle empty string as missing parameter for required query params with validators', async () => {
+    const app = getTestApp();
+    
+    mount(app, {
+      method: 'get',
+      path: 'test-empty-string-required',
+      endpoint: {
+        run: async ctx => {
+          const param = ctx.query('param', (value: unknown) => String(value));
+          
+          return { param };
+        }
+      }
+    });
+
+    // Empty string should be treated as missing for required parameters
+    const response = await makeRequest('GET', '/test-empty-string-required?param=');
+    
+    expect(response.status).toBe(HTTP_BAD_REQUEST);
+    expect(response.body?.['error']).toContain('Missing required parameter: param');
+  });
 });
