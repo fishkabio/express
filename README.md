@@ -1,6 +1,6 @@
 # Express API
 
-Type-safe Express.js routing with clean, minimal API.
+Functional utilities for Express.js with type-safe validation and error handling.
 
 ## Installation
 
@@ -8,65 +8,165 @@ Type-safe Express.js routing with clean, minimal API.
 npm install @fishka/express
 ```
 
+## Overview
+
+This package provides standalone utility functions that work directly with Express. Each feature can be used independently - mix and match what you need.
+
 ## Quick Start
 
 ```typescript
 import express from 'express';
-import { RouteTable, transform, toInt } from '@fishka/express';
+import { addErrorHandling, body, patchExpressAsyncErrors, pathParam, queryParam } from '@fishka/express';
 import { assertString } from '@fishka/assertions';
 
 const app = express();
 app.use(express.json());
 
-const routes = new RouteTable(app);
+// Enable automatic async error catching (call once at startup)
+patchExpressAsyncErrors();
 
 // GET /users/:id - with typed path params
-routes.get('users/:id', async ctx => ({
-  id: ctx.path('id', transform(toInt())), // number - validated inline
-  name: 'John',
-}));
+app.get('/users/:id', async (req, res) => {
+  const id = pathParam(req, 'id'); // string - validated inline
+  res.json({ id, name: 'John' });
+});
 
-// GET /users - list all users
-routes.get('users', async () => [
-  { id: 1, name: 'John' },
-  { id: 2, name: 'Jane' },
-]);
+// GET /users - with query params
+app.get('/users', async (req, res) => {
+  const page = queryParam(req, 'page'); // string - throws 400 if missing
+  res.json({ page, users: [] });
+});
 
 // POST /users - with body validation
-routes.post('users', async ctx => ({
-  id: 1,
-  name: ctx.body({ name: v => assertString(v, 'name required') }).name,
-}));
+app.post('/users', async (req, res) => {
+  const data = body(req, { name: assertString });
+  res.json({ id: 1, name: data.name }); // validators infer a type for the data!
+});
 
-// DELETE /users/:id
-routes.delete('users/:id', async () => {});
+// Add error handling middleware (must be last)
+addErrorHandling(app);
 
 app.listen(3000);
 ```
 
-## URL Parameter Validation
+## Utilities
 
-Use `transform()` to validate and transform path/query parameters. All operators are composable:
+### `pathParam(req, name, validator?)`
+
+Get and validate a path parameter from Express request.
+
+```typescript
+import { pathParam, transform, toInt, minLength } from '@fishka/express';
+
+app.get('/users/:id', async (req, res) => {
+  // Simple - returns string, throws 400 if missing
+  const id1 = pathParam(req, 'id');
+
+  // With validation - transform to number
+  const id2 = pathParam(req, 'id', transform(toInt()));
+
+  // Transform with validation - string min length
+  const slug = pathParam(req, 'slug', transform(minLength(3)));
+
+  res.json({ id: '...' });
+});
+```
+
+### `queryParam(req, name, validator?)`
+
+Get and validate a query parameter from Express request.
+
+```typescript
+import { queryParam, transform, toInt, min, range, oneOf } from '@fishka/express';
+
+app.get('/users', async (req, res) => {
+  // Simple - returns string, throws 400 if missing
+  const search = queryParam(req, 'search');
+
+  // With validation - transform to number with min value
+  const page = queryParam(req, 'page', transform(toInt(), min(1)));
+
+  // With validation - number range
+  const limit = queryParam(req, 'limit', transform(toInt(), range(1, 100)));
+
+  // With validation - enum
+  const sort = queryParam(req, 'sort', transform(oneOf('asc', 'desc')));
+
+  res.json({ page, limit, users: [] });
+});
+```
+
+### `body(req, validator)`
+
+Get and validate the request body.
+
+```typescript
+import { body } from '@fishka/express';
+import { assertString, assertNumber } from '@fishka/assertions';
+
+app.post('/users', async (req, res) => {
+  // Object assertion - validates and infers a type.
+  const data = body(req, {
+    name: assertString,
+    age: assertNumber,
+  });
+
+  res.json({ id: 1, name: data.name });
+});
+```
+
+### `patchExpressAsyncErrors()`
+
+Patches Express to automatically catch async errors. Call once at application startup.
+
+```typescript
+import { patchExpressAsyncErrors } from '@fishka/express';
+
+// Call before defining routes
+patchExpressAsyncErrors();
+
+// Now async route handlers don't need try/catch
+app.get('/users', async (req, res) => {
+  const users = await db.users.findAll(); // Errors are caught automatically
+  res.json(users);
+});
+```
+
+### `addErrorHandling(app)`
+
+Adds centralized error handling middleware. Must be called after all routes.
+
+```typescript
+import { addErrorHandling, HttpError } from '@fishka/express';
+
+// Define routes...
+app.get('/users/:id', async (req, res) => {
+  const user = await db.users.findById(req.params.id);
+  assertHttp(user, 404, 'User not found');
+  res.json(user);
+});
+
+// Add error handling last
+addErrorHandling(app);
+```
+
+## Parameter Validation
+
+Use `transform()` to validate and transform parameters. All operators are composable:
 
 ```typescript
 import { transform, toInt, minLength, matches, min, range, oneOf } from '@fishka/express';
 
-routes.get('users/:id', async ctx => ({
-  id: ctx.path('id', transform(toInt())), // string → number (required)
-  page: ctx.query('page', transform(toInt(), min(1))), // number >= 1, required (throws 400 if missing)
-  limit: ctx.query('limit', transform(toInt(), range(1, 100))), // number 1-100, required (throws 400 if missing)
-  sort: ctx.query('sort', transform(oneOf('asc', 'desc'))), // enum, required (throws 400 if missing)
-  search: ctx.query('search', transform(minLength(3))), // string min 3 chars, required (throws 400 if missing)
-}));
+app.get('/users/:id', async (req, res) => {
+  const id = pathParam(req, 'id', transform(toInt())); // string → number
+  const page = queryParam(req, 'page', transform(toInt(), min(1))); // number >= 1
+  const limit = queryParam(req, 'limit', transform(toInt(), range(1, 100))); // number 1-100
+  const sort = queryParam(req, 'sort', transform(oneOf('asc', 'desc'))); // enum
+  const search = queryParam(req, 'search', transform(minLength(3))); // string min 3 chars
+
+  res.json({ id, page, limit });
+});
 ```
-
-### Parameter Requirements
-
-- `ctx.path('name')` - returns string (throws 400 if missing)
-- `ctx.query('name')` - returns string (throws 400 if missing/empty)
-- `ctx.query('name', validator)` - returns validated value (throws 400 if missing/empty/invalid)
-- All parameters are required - missing or empty values throw BAD_REQUEST
-- Validators receive raw values (including undefined/null/empty) and can enforce additional validation
 
 ### Available Operators
 
@@ -98,26 +198,12 @@ routes.get('users/:id', async ctx => ({
 - `validator(fn)` - custom validator returning string|undefined
 - `map(fn)` - transform value
 
-### All Parameters Are Required
+### Parameter Requirements
 
-- **Path parameters** are always required - `ctx.path()` throws 400 if missing
-- **Query parameters** are always required - `ctx.query()` throws 400 if missing/empty
-- **Validators** transform and validate parameter values
-
-For parameters that should have default values when missing, handle them at the application level or use the `optional()` wrapper:
-
-```typescript
-import { transform, toInt, optional } from '@fishka/express';
-
-routes.get('users', async ctx => {
-  // Using optional() wrapper for parameters with default values
-  const page = ctx.query('page', optional(transform(toInt()))) ?? 1;
-  // All parameters are required by default
-  const search = ctx.query('search');
-
-  return { page: page ?? 1, search };
-});
-```
+- `pathParam(req, 'name')` - returns string (throws 400 if missing)
+- `queryParam(req, 'name')` - returns string (throws 400 if missing/empty)
+- `queryParam(req, 'name', validator)` - returns validated value (throws 400 if missing/empty/invalid)
+- All parameters are required - missing or empty values throw BAD_REQUEST
 
 ## Authentication
 
@@ -128,12 +214,9 @@ const auth = new BasicAuthStrategy(async (user, pass) =>
   user === 'admin' && pass === 'secret' ? { id: '1', role: 'admin' } : null,
 );
 
-routes.get('profile', {
-  middlewares: [createAuthMiddleware(auth)],
-  run: async ctx => {
-    const user = getAuthUser(ctx);
-    return { id: user.id };
-  },
+app.get('/profile', createAuthMiddleware(auth), async (req, res) => {
+  const user = getAuthUser(req);
+  res.json({ id: user.id });
 });
 ```
 
@@ -150,91 +233,129 @@ app.use(
 );
 ```
 
-## HTTP Status Code in Validation
+## HTTP Errors
 
-For cases where you need specific HTTP status codes (like 401 for authentication, 404 for not found), use `assertHttp`:
+Use `HttpError` for specific status codes:
+
+```typescript
+import { HttpError, HTTP_UNAUTHORIZED, HTTP_NOT_FOUND } from '@fishka/express';
+
+app.get('/users/:id', async (req, res) => {
+  const user = await db.users.findById(req.params.id);
+
+  if (!req.headers.authorization) {
+    throw new HttpError(HTTP_UNAUTHORIZED, 'Authorization required');
+  }
+
+  if (!user) {
+    throw new HttpError(HTTP_NOT_FOUND, 'User not found');
+  }
+
+  res.json(user);
+});
+```
+
+Use `assertHttp` for inline assertions:
 
 ```typescript
 import { assertHttp, HTTP_UNAUTHORIZED, HTTP_NOT_FOUND } from '@fishka/express';
 
-// In a validator or route handler
-assertHttp(req.headers.authorization, HTTP_UNAUTHORIZED, 'Authorization required');
-assertHttp(user, HTTP_NOT_FOUND, 'User not found');
-assertHttp(user.isAdmin, HTTP_FORBIDDEN, 'Admin access required');
-```
+app.get('/admin', async (req, res) => {
+  assertHttp(req.headers.authorization, HTTP_UNAUTHORIZED, 'Authorization required');
 
-## Complete Example
+  const user = await db.users.findById(req.params.id);
+  assertHttp(user, HTTP_NOT_FOUND, 'User not found');
+  assertHttp(user.isAdmin, HTTP_FORBIDDEN, 'Admin access required');
 
-Full initialization with TLS context, validation, and error handling:
-
-```typescript
-import express from 'express';
-import { RouteTable, createTlsMiddleware, catchAllMiddleware, transform, toInt } from '@fishka/express';
-
-const app = express();
-
-// 1. Basic express middleware
-app.use(express.json());
-
-// 2. Initialize TLS context (Request IDs, etc.)
-// Note: Request ID functionality is disabled by default.
-// To enable it, call configureExpressApi({ requestIdHeader: 'x-request-id' }) first.
-app.use(createTlsMiddleware());
-
-// 3. Define routes with typed parameters
-const routes = new RouteTable(app);
-
-routes.get('health', async () => ({ status: 'UP' }));
-
-routes.get('users/:id', async ctx => ({
-  id: ctx.path('id', transform(toInt())),
-}));
-
-// 4. Error handler - catches middleware/parsing errors
-app.use(catchAllMiddleware);
-
-app.listen(3000);
+  res.json({ admin: true });
+});
 ```
 
 ## Configuration
 
-You can configure global settings using `configureExpressApi`:
+### Request ID
 
 ```typescript
-import { configureExpressApi } from '@fishka/express';
+import { configureExpressApi, createTlsMiddleware } from '@fishka/express';
 
-// Request ID configuration (disabled by default)
+// Enable request ID with custom header name
 configureExpressApi({
-  // Enable request ID with custom header name
   requestIdHeader: 'x-request-id', // or 'x-correlation-id', 'trace-id', etc.
-
-  // Whether to trust request ID from client headers
-  trustRequestIdHeader: true, // default: true
+  trustRequestIdHeader: true, // default: true, if we trust and propagate request ID passed by client.
 });
 
-// By default, request ID functionality is disabled.
-// To enable it, you must set requestIdHeader.
+// Add TLS middleware to track request context
+app.use(createTlsMiddleware());
 ```
 
-## Process Handlers
+### Process Handlers
 
-Handle uncaught errors and graceful shutdown in one place:
+Handle uncaught errors and graceful shutdown:
 
 ```typescript
 import { installProcessHandlers } from '@fishka/express';
 
 installProcessHandlers({
-  // Error handlers
   onUncaughtException: err => sendToMonitoring(err),
   onUnhandledRejection: reason => sendToMonitoring(reason),
-
-  // Graceful shutdown
   onShutdown: async () => {
     await database.close();
     await server.close();
   },
-  shutdownTimeout: 15000, // Force exit after 15s (default: 10s)
+  shutdownTimeout: 15000,
 });
+```
+
+## Complete Example
+
+```typescript
+import express from 'express';
+import {
+  addErrorHandling,
+  body,
+  min,
+  patchExpressAsyncErrors,
+  pathParam,
+  queryParam,
+  range,
+  toInt,
+  transform,
+} from '@fishka/express';
+import { assertString } from '@fishka/assertions';
+import { assertHttp } from './api.types';
+
+const app = express();
+app.use(express.json());
+
+// Enable automatic async error catching
+patchExpressAsyncErrors();
+
+// Routes
+app.get('/users/:id', async (req, res) => {
+  const id = pathParam(req, 'id', transform(toInt()));
+  const user = await db.users.findById(id);
+  assertHttp(user, 404, 'User not found');
+  res.json(user);
+});
+
+app.get('/users', async (req, res) => {
+  const page = queryParam(req, 'page', transform(toInt(), min(1)));
+  const limit = queryParam(req, 'limit', transform(toInt(), range(1, 100)));
+
+  const users = await db.users.findAll({ page, limit });
+  res.json({ users, page, limit });
+});
+
+app.post('/users', async (req, res) => {
+  const data = body(req, { name: assertString });
+  const user = await db.users.create(data);
+  res.status(201).json(user);
+});
+
+// Error handling (must be last)
+addErrorHandling(app);
+
+app.listen(3000);
 ```
 
 ## License

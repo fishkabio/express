@@ -1,15 +1,17 @@
 import { assertString } from '@fishka/assertions';
-import { HTTP_FORBIDDEN, HttpError, catchAllMiddleware, transform, validator } from '../src';
-import { getTestApp, getTestRoutes, makeRawRequest, makeRequest } from './test-setup';
+import { HTTP_FORBIDDEN, HttpError, body, pathParam, transform, validator } from '../src';
+import { addErrorHandling, getTestApp, makeRawRequest, makeRequest } from './test-setup';
 
 describe('Structured Error Handling', () => {
   // 1. Test Validator Error -> 404
   describe('Validator Errors', () => {
     it('should return 400 when URL parameter validation fails', async () => {
-      const routes = getTestRoutes();
-      routes.get('test-validation/:id', async ctx => ({
-        id: ctx.path('id', transform(validator(s => (s === 'valid' ? undefined : 'Invalid ID')))),
-      }));
+      const app = getTestApp();
+      app.get('/test-validation/:id', async (req, res) => {
+        const id = pathParam(req, 'id', transform(validator(s => (s === 'valid' ? undefined : 'Invalid ID'))));
+        res.json({ id });
+      });
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-validation/invalid');
       expect(response.status).toBe(400);
@@ -17,11 +19,12 @@ describe('Structured Error Handling', () => {
     });
 
     it('should return 400 when Body validation fails', async () => {
-      const routes = getTestRoutes();
-      routes.post('test-body-validation', async ctx => {
-        ctx.body({ name: (v: unknown) => assertString(v, 'Name must be string') });
-        return { success: true };
+      const app = getTestApp();
+      app.post('/test-body-validation', async (req, res) => {
+        body(req, { name: (v: unknown) => assertString(v, 'Name must be string') });
+        res.json({ success: true });
       });
+      addErrorHandling(app);
 
       // Pass invalid body (number instead of string)
       const response = await makeRequest('POST', '/test-body-validation', { body: { name: 123 } });
@@ -33,10 +36,11 @@ describe('Structured Error Handling', () => {
   // 2. Test Handler Body Error -> 500
   describe('Handler Execution Errors', () => {
     it('should return 500 when handler throws a regular error', async () => {
-      const routes = getTestRoutes();
-      routes.get('test-handler-error', async () => {
+      const app = getTestApp();
+      app.get('/test-handler-error', async () => {
         throw new Error('Something went wrong in the handler');
       });
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-handler-error');
       expect(response.status).toBe(500);
@@ -44,13 +48,14 @@ describe('Structured Error Handling', () => {
     });
 
     it('should return HttpError with separate details field', async () => {
-      const routes = getTestRoutes();
-      routes.get('test-http-error-details', async () => {
+      const app = getTestApp();
+      app.get('/test-http-error-details', async () => {
         throw new HttpError(HTTP_FORBIDDEN, 'Forbidden action', {
           reason: 'Insufficient permissions',
           code: 'PRO-001',
         });
       });
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-http-error-details');
       expect(response.status).toBe(HTTP_FORBIDDEN);
@@ -67,8 +72,7 @@ describe('Structured Error Handling', () => {
       app.use('/test-next-error', (_req, _res, next) => {
         next(new Error('Error via next()'));
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-next-error');
       expect(response.status).toBe(500);
@@ -77,14 +81,12 @@ describe('Structured Error Handling', () => {
 
     it('should catch JSON parsing errors (SyntaxError) with 400 status', async () => {
       const app = getTestApp();
-      const routes = getTestRoutes();
 
-      routes.post('test-json-parse-error', async ctx => {
-        ctx.body({ data: (v: unknown) => assertString(v) });
-        return { success: true };
+      app.post('/test-json-parse-error', async (req, res) => {
+        body(req, { data: (v: unknown) => assertString(v) });
+        res.json({ success: true });
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       // Send malformed JSON
       const response = await makeRawRequest('POST', '/test-json-parse-error', {
@@ -101,8 +103,7 @@ describe('Structured Error Handling', () => {
       app.use('/test-http-error-middleware', (_req, _res, next) => {
         next(new HttpError(HTTP_FORBIDDEN, 'Access denied by middleware'));
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-http-error-middleware');
       expect(response.status).toBe(HTTP_FORBIDDEN);
@@ -116,8 +117,7 @@ describe('Structured Error Handling', () => {
       app.use('/test-async-reject', async (_req, _res, _next) => {
         throw new Error('Async middleware rejection');
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-async-reject');
       expect(response.status).toBe(500);
@@ -130,8 +130,7 @@ describe('Structured Error Handling', () => {
       app.use('/test-empty-error', (_req, _res, next) => {
         next(new Error());
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-empty-error');
       expect(response.status).toBe(500);
@@ -144,8 +143,7 @@ describe('Structured Error Handling', () => {
       app.use('/test-string-error', (_req, _res, next) => {
         next('String error message');
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-string-error');
       expect(response.status).toBe(500);
@@ -160,10 +158,10 @@ describe('Structured Error Handling', () => {
       });
 
       // Add a route that responds after the middleware
-      const routes = getTestRoutes();
-      routes.get('test-null-error', async () => ({ passed: true }));
-
-      app.use(catchAllMiddleware);
+      app.get('/test-null-error', async (_req, res) => {
+        res.json({ passed: true });
+      });
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/test-null-error');
       // null error means "no error" in Express, should reach the route
@@ -175,14 +173,12 @@ describe('Structured Error Handling', () => {
 
   describe('Error isolation (server stability)', () => {
     it('should not crash server when route throws synchronously', async () => {
-      const routes = getTestRoutes();
       const app = getTestApp();
 
-      routes.get('test-sync-throw-stability', async () => {
+      app.get('/test-sync-throw-stability', async () => {
         throw new Error('Sync throw in route');
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       // First request should fail but not crash
       const response1 = await makeRequest('GET', '/test-sync-throw-stability');
@@ -195,14 +191,12 @@ describe('Structured Error Handling', () => {
     });
 
     it('should handle multiple concurrent errors without crashing', async () => {
-      const routes = getTestRoutes();
       const app = getTestApp();
 
-      routes.get('test-concurrent-errors', async () => {
+      app.get('/test-concurrent-errors', async () => {
         throw new Error('Concurrent error');
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       // Fire multiple requests concurrently
       const promises = Array.from({ length: 5 }, () => makeRequest('GET', '/test-concurrent-errors'));
@@ -217,19 +211,17 @@ describe('Structured Error Handling', () => {
     });
 
     it('should continue serving requests after error in one request', async () => {
-      const routes = getTestRoutes();
       const app = getTestApp();
 
       let requestCount = 0;
-      routes.get('test-intermittent-errors', async () => {
+      app.get('/test-intermittent-errors', async (_req, res) => {
         requestCount++;
         if (requestCount % 2 === 1) {
           throw new Error('Odd request error');
         }
-        return { count: requestCount };
+        res.json({ count: requestCount });
       });
-
-      app.use(catchAllMiddleware);
+      addErrorHandling(app);
 
       // First request fails
       const response1 = await makeRequest('GET', '/test-intermittent-errors');

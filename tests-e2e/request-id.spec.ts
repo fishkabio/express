@@ -1,5 +1,5 @@
 import { configureExpressApi, HTTP_INTERNAL_SERVER_ERROR, resetExpressApiConfig } from '../src';
-import { getTestRoutes, makeRequest } from './test-setup';
+import { addErrorHandling, getTestApp, makeRequest } from './test-setup';
 
 describe('Request ID Handling', () => {
   const REQUEST_ID_HEADER = 'x-request-id';
@@ -14,8 +14,11 @@ describe('Request ID Handling', () => {
   });
 
   it('should automatically generate a request ID if none provided', async () => {
-    const routes = getTestRoutes();
-    routes.get('test-auto-id', async () => ({ value: 'ok' }));
+    const app = getTestApp();
+    app.get('/test-auto-id', async (_req, res) => {
+      res.json({ value: 'ok' });
+    });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/test-auto-id');
     expect(response.status).toBe(200);
@@ -25,8 +28,11 @@ describe('Request ID Handling', () => {
   });
 
   it('should use externally provided request ID from header', async () => {
-    const routes = getTestRoutes();
-    routes.get('test-header-id', async () => ({ value: 'ok' }));
+    const app = getTestApp();
+    app.get('/test-header-id', async (_req, res) => {
+      res.json({ value: 'ok' });
+    });
+    addErrorHandling(app);
 
     const customId = 'my-custom-trace-id';
     const response = await makeRequest('GET', '/test-header-id', {
@@ -38,10 +44,11 @@ describe('Request ID Handling', () => {
   });
 
   it('should include request ID in error responses', async () => {
-    const routes = getTestRoutes();
-    routes.get('test-error-id', async () => {
+    const app = getTestApp();
+    app.get('/test-error-id', async () => {
       throw new Error('Boom');
     });
+    addErrorHandling(app);
 
     const customId = 'error-trace-id';
     const response = await makeRequest('GET', '/test-error-id', {
@@ -55,8 +62,11 @@ describe('Request ID Handling', () => {
   it('should ignore request ID from header if trustRequestIdHeader is false', async () => {
     configureExpressApi({ trustRequestIdHeader: false });
 
-    const routes = getTestRoutes();
-    routes.get('test-untrusted-id', async () => ({ value: 'ok' }));
+    const app = getTestApp();
+    app.get('/test-untrusted-id', async (_req, res) => {
+      res.json({ value: 'ok' });
+    });
+    addErrorHandling(app);
 
     const customId = 'untrusted-id';
     const response = await makeRequest('GET', '/test-untrusted-id', {
@@ -72,8 +82,11 @@ describe('Request ID Handling', () => {
     // Reset to default config (requestIdHeader: undefined)
     resetExpressApiConfig();
 
-    const routes = getTestRoutes();
-    routes.get('test-disabled-id', async () => ({ value: 'ok' }));
+    const app = getTestApp();
+    app.get('/test-disabled-id', async (_req, res) => {
+      res.json({ value: 'ok' });
+    });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/test-disabled-id');
 
@@ -86,8 +99,11 @@ describe('Request ID Handling', () => {
     const customHeader = 'x-correlation-id';
     configureExpressApi({ requestIdHeader: customHeader });
 
-    const routes = getTestRoutes();
-    routes.get('test-custom-header', async () => ({ value: 'ok' }));
+    const app = getTestApp();
+    app.get('/test-custom-header', async (_req, res) => {
+      res.json({ value: 'ok' });
+    });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/test-custom-header');
 

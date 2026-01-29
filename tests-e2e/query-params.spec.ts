@@ -1,22 +1,19 @@
 import { describe, expect, it } from '@jest/globals';
 import express from 'express';
-import { assertHttp, HTTP_BAD_REQUEST, HTTP_OK, mount } from '../src';
-import { getTestApp, makeRequest } from './test-setup';
+import { assertHttp, HTTP_BAD_REQUEST, HTTP_OK, pathParam, queryParam } from '../src';
+import { addErrorHandling, getTestApp, makeRequest } from './test-setup';
 
 describe('Query parameters tests', () => {
   it('should handle query parameters in simple routes', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'simple-test',
-      endpoint: {
-        run: async ctx => ({
-          page: ctx.query('page'),
-          limit: ctx.query('limit'),
-        }),
-      },
+    app.get('/simple-test', async (req, res) => {
+      res.json({
+        page: queryParam(req, 'page'),
+        limit: queryParam(req, 'limit'),
+      });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/simple-test?page=1&limit=20');
 
@@ -27,17 +24,14 @@ describe('Query parameters tests', () => {
   it('should handle query parameters with path parameters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'users/:userId',
-      endpoint: {
-        run: async ctx => ({
-          userId: ctx.path('userId'),
-          page: ctx.query('page'),
-          limit: ctx.query('limit'),
-        }),
-      },
+    app.get('/users/:userId', async (req, res) => {
+      res.json({
+        userId: pathParam(req, 'userId'),
+        page: queryParam(req, 'page'),
+        limit: queryParam(req, 'limit'),
+      });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/users/123?page=5&limit=10');
 
@@ -51,20 +45,17 @@ describe('Query parameters tests', () => {
     // Create a router that will be mounted (simulating API versioning or nested routes)
     const apiRouter = express.Router();
 
-    mount(apiRouter, {
-      method: 'get',
-      path: 'monitoring',
-      endpoint: {
-        run: async ctx => ({
-          page: ctx.query('page'),
-          limit: ctx.query('limit'),
-          sort: ctx.query('sort'),
-        }),
-      },
+    apiRouter.get('/monitoring', async (req, res) => {
+      res.json({
+        page: queryParam(req, 'page'),
+        limit: queryParam(req, 'limit'),
+        sort: queryParam(req, 'sort'),
+      });
     });
 
     // Mount the router at /api path
     app.use('/api', apiRouter);
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/api/monitoring?page=2&limit=50&sort=desc');
 
@@ -77,19 +68,16 @@ describe('Query parameters tests', () => {
 
     const v1Router = express.Router();
 
-    mount(v1Router, {
-      method: 'get',
-      path: 'items/:itemId',
-      endpoint: {
-        run: async ctx => ({
-          itemId: ctx.path('itemId'),
-          page: ctx.query('page'),
-          details: ctx.query('details'),
-        }),
-      },
+    v1Router.get('/items/:itemId', async (req, res) => {
+      res.json({
+        itemId: pathParam(req, 'itemId'),
+        page: queryParam(req, 'page'),
+        details: queryParam(req, 'details'),
+      });
     });
 
     app.use('/api/v1', v1Router);
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/api/v1/items/789?page=3&details=true');
 
@@ -102,15 +90,11 @@ describe('Query parameters tests', () => {
 
     // Create deeply nested router structure
     const adminRouter = express.Router();
-    mount(adminRouter, {
-      method: 'get',
-      path: 'dashboard',
-      endpoint: {
-        run: async ctx => ({
-          view: ctx.query('view'),
-          page: ctx.query('page'),
-        }),
-      },
+    adminRouter.get('/dashboard', async (req, res) => {
+      res.json({
+        view: queryParam(req, 'view'),
+        page: queryParam(req, 'page'),
+      });
     });
 
     const apiRouter = express.Router();
@@ -120,6 +104,7 @@ describe('Query parameters tests', () => {
     mainRouter.use('/api/v1', apiRouter);
 
     app.use(mainRouter);
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/api/v1/admin/dashboard?view=compact&page=1');
 
@@ -130,17 +115,14 @@ describe('Query parameters tests', () => {
   it('should handle query parameters correctly', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'search',
-      endpoint: {
-        run: async ctx => ({
-          q: ctx.query('q'),
-          page: ctx.query('page'),
-          // Both parameters are required
-        }),
-      },
+    app.get('/search', async (req, res) => {
+      res.json({
+        q: queryParam(req, 'q'),
+        page: queryParam(req, 'page'),
+        // Both parameters are required
+      });
     });
+    addErrorHandling(app);
 
     // Test with all parameters
     const response1 = await makeRequest('GET', '/search?q=test&page=2');
@@ -156,43 +138,35 @@ describe('Query parameters tests', () => {
   it('should handle array query parameters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'filter',
-      endpoint: {
-        run: async ctx => ({
-          tags: ctx.query('tags'),
-          // Note: ctx.query returns first value for array params
-          // This is the existing behavior
-        }),
-      },
+    app.get('/filter', async (req, res) => {
+      res.json({
+        tags: queryParam(req, 'tags'),
+        // Note: queryParam returns first value for array params
+        // This is the existing behavior
+      });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/filter?tags=js&tags=ts&tags=node');
 
     expect(response.status).toBe(HTTP_OK);
-    // Current behavior: ctx.query returns first value for array params
+    // Current behavior: getQueryParam returns first value for array params
     expect(response.body).toEqual({ tags: 'js' });
   });
 
   it('should work with query parameter validation using assertHttp', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'validated',
-      endpoint: {
-        run: async ctx => {
-          const pageStr = ctx.query('page');
-          const page = pageStr ? parseInt(pageStr, 10) : 1;
+    app.get('/validated', async (req, res) => {
+      const pageStr = queryParam(req, 'page');
+      const page = pageStr ? parseInt(pageStr, 10) : 1;
 
-          // Use assertHttp for proper HTTP error handling
-          assertHttp(!isNaN(page) && page >= 1, HTTP_BAD_REQUEST, 'Page must be a positive number');
+      // Use assertHttp for proper HTTP error handling
+      assertHttp(!isNaN(page) && page >= 1, HTTP_BAD_REQUEST, 'Page must be a positive number');
 
-          return { page };
-        },
-      },
+      res.json({ page });
     });
+    addErrorHandling(app);
 
     // Valid request
     const validResponse = await makeRequest('GET', '/validated?page=5');
@@ -204,29 +178,24 @@ describe('Query parameters tests', () => {
     expect(invalidResponse.status).toBe(HTTP_BAD_REQUEST);
   });
 
-  it('should reproduce the bug from bug report: ctx.query() with validators throws BAD_REQUEST for missing parameters', async () => {
+  it('should reproduce the bug from bug report: getQueryParam() with validators throws BAD_REQUEST for missing parameters', async () => {
     const app = getTestApp();
 
     // Create a monitoring endpoint similar to the bug report
-    mount(app, {
-      method: 'get',
-      path: 'api/monitoring/events',
-      endpoint: {
-        run: async ctx => {
-          // With validators, parameters are required
-          // ctx.query() will throw BAD_REQUEST if parameters are missing
-          const names = ctx.query('names');
-          const from = ctx.query('from');
-          const to = ctx.query('to');
+    app.get('/api/monitoring/events', async (req, res) => {
+      // With validators, parameters are required
+      // queryParam() will throw BAD_REQUEST if parameters are missing
+      const names = queryParam(req, 'names');
+      const from = queryParam(req, 'from');
+      const to = queryParam(req, 'to');
 
-          // These lines are reached only if all parameters are present
-          return {
-            events: [],
-            params: { names, from, to },
-          };
-        },
-      },
+      // These lines are reached only if all parameters are present
+      res.json({
+        events: [],
+        params: { names, from, to },
+      });
     });
+    addErrorHandling(app);
 
     // Test 1: With all parameters - should work
     const response1 = await makeRequest('GET', '/api/monitoring/events?names=test&from=2026-01-14&to=2026-01-15');
@@ -249,23 +218,18 @@ describe('Query parameters tests', () => {
   it('should test edge case with empty string query parameters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'test-empty-param',
-      endpoint: {
-        run: async ctx => {
-          const emptyParam = ctx.query('empty');
-          const missingParam = ctx.query('missing');
+    app.get('/test-empty-param', async (req, res) => {
+      const emptyParam = queryParam(req, 'empty');
+      const missingParam = queryParam(req, 'missing');
 
-          return {
-            emptyParam,
-            missingParam,
-            isEmptyUndefined: emptyParam === undefined,
-            isMissingUndefined: missingParam === undefined,
-          };
-        },
-      },
+      res.json({
+        emptyParam,
+        missingParam,
+        isEmptyUndefined: emptyParam === undefined,
+        isMissingUndefined: missingParam === undefined,
+      });
     });
+    addErrorHandling(app);
 
     // Empty string parameter should be treated as missing (BAD_REQUEST)
     const response = await makeRequest('GET', '/test-empty-param?empty=');
@@ -277,23 +241,18 @@ describe('Query parameters tests', () => {
   it('should test what happens with special characters in query params', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'test-special',
-      endpoint: {
-        run: async ctx => {
-          const param1 = ctx.query('param1');
-          const param2 = ctx.query('param2');
-          const param3 = ctx.query('param3');
+    app.get('/test-special', async (req, res) => {
+      const param1 = queryParam(req, 'param1');
+      const param2 = queryParam(req, 'param2');
+      const param3 = queryParam(req, 'param3');
 
-          return {
-            param1,
-            param2,
-            param3,
-          };
-        },
-      },
+      res.json({
+        param1,
+        param2,
+        param3,
+      });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest(
       'GET',
@@ -310,16 +269,11 @@ describe('Query parameters tests', () => {
   it('should throw BAD_REQUEST when required query parameter with validator is missing', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'test-required',
-      endpoint: {
-        run: async ctx => {
-          const param = ctx.query('requiredParam');
-          return { param };
-        },
-      },
+    app.get('/test-required', async (req, res) => {
+      const param = queryParam(req, 'requiredParam');
+      res.json({ param });
     });
+    addErrorHandling(app);
 
     // Request without parameter should fail
     const response = await makeRequest('GET', '/test-required');
@@ -331,16 +285,11 @@ describe('Query parameters tests', () => {
   it('should work when required query parameter with validator is provided', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'test-required-present',
-      endpoint: {
-        run: async ctx => {
-          const param = ctx.query('requiredParam');
-          return { param };
-        },
-      },
+    app.get('/test-required-present', async (req, res) => {
+      const param = queryParam(req, 'requiredParam');
+      res.json({ param });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/test-required-present?requiredParam=value');
 
@@ -348,20 +297,15 @@ describe('Query parameters tests', () => {
     expect(response.body?.['param']).toBe('value');
   });
 
-  it('should be consistent with path() method behavior for required parameters', async () => {
+  it('should be consistent with pathParam() method behavior for required parameters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'compare/:pathParam',
-      endpoint: {
-        run: async ctx => {
-          const pathParam = ctx.path('pathParam');
-          const queryParam = ctx.query('queryParam');
-          return { pathParam, queryParam };
-        },
-      },
+    app.get('/compare/:pathParam', async (req, res) => {
+      const pParam = pathParam(req, 'pathParam');
+      const qParam = queryParam(req, 'queryParam');
+      res.json({ pathParam: pParam, queryParam: qParam });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/compare/value');
     expect(response.status).toBe(HTTP_BAD_REQUEST);
@@ -371,16 +315,11 @@ describe('Query parameters tests', () => {
   it('should handle empty string as missing parameter for required query params with validators', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'test-empty-string-required',
-      endpoint: {
-        run: async ctx => {
-          const param = ctx.query('param');
-          return { param };
-        },
-      },
+    app.get('/test-empty-string-required', async (req, res) => {
+      const param = queryParam(req, 'param');
+      res.json({ param });
     });
+    addErrorHandling(app);
 
     // Empty string should be treated as missing for required parameters
     const response = await makeRequest('GET', '/test-empty-string-required?param=');

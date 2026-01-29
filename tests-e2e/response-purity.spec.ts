@@ -1,5 +1,5 @@
 import { configureExpressApi, resetExpressApiConfig } from '../src';
-import { getTestRoutes, makeRequest } from './test-setup';
+import { addErrorHandling, getTestApp, makeRequest } from './test-setup';
 
 describe('Response purity', () => {
   beforeEach(() => {
@@ -11,35 +11,43 @@ describe('Response purity', () => {
     resetExpressApiConfig();
   });
   it('should return exactly what endpoint returns without modifications', async () => {
-    const routes = getTestRoutes();
+    const app = getTestApp();
 
     // Test 1: Simple object
-    routes.get('/test-simple-object', async () => ({
-      id: 1,
-      name: 'test',
-      nested: { value: 'deep' },
-    }));
+    app.get('/test-simple-object', async (_req, res) => {
+      res.json({
+        id: 1,
+        name: 'test',
+        nested: { value: 'deep' },
+      });
+    });
 
     // Test 2: Array
-    routes.get('/test-array', async () => [
-      { id: 1, name: 'first' },
-      { id: 2, name: 'second' },
-    ]);
+    app.get('/test-array', async (_req, res) => {
+      res.json([
+        { id: 1, name: 'first' },
+        { id: 2, name: 'second' },
+      ]);
+    });
 
     // Test 3: Primitive values wrapped in objects (Express sends primitives as-is, not JSON)
-    routes.get('/test-string', async () => ({ value: 'hello world' }));
-    routes.get('/test-number', async () => ({ value: 42 }));
-    routes.get('/test-boolean', async () => ({ value: true }));
-    routes.get('/test-null', async () => ({ value: null }));
+    app.get('/test-string', async (_req, res) => res.json({ value: 'hello world' }));
+    app.get('/test-number', async (_req, res) => res.json({ value: 42 }));
+    app.get('/test-boolean', async (_req, res) => res.json({ value: true }));
+    app.get('/test-null', async (_req, res) => res.json({ value: null }));
 
     // Test 4: Object with status property
-    routes.get('/test-with-status', async () => ({
-      result: 'data',
-      status: 201,
-    }));
+    app.get('/test-with-status', async (_req, res) => {
+      res.status(201).json({
+        result: 'data',
+        status: 201,
+      });
+    });
 
     // Test 5: Empty object
-    routes.get('/test-empty', async () => ({}));
+    app.get('/test-empty', async (_req, res) => res.json({}));
+
+    addErrorHandling(app);
 
     // Make requests and verify responses
     const responses = await Promise.all([
@@ -103,14 +111,15 @@ describe('Response purity', () => {
   });
 
   it('should not modify error responses from HttpError', async () => {
-    const routes = getTestRoutes();
+    const app = getTestApp();
 
-    routes.get('/test-http-error', async () => {
+    app.get('/test-http-error', async () => {
       // Note: We can't directly throw HttpError here without importing it
       // This test is to verify that regular errors get proper error response
       // without extra fields added to the body
       throw new Error("I'm a teapot");
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/test-http-error');
 
@@ -128,12 +137,15 @@ describe('Response purity', () => {
   });
 
   it('should add requestId only to headers, not body', async () => {
-    const routes = getTestRoutes();
+    const app = getTestApp();
 
-    routes.get('/test-headers-only', async () => ({
-      data: 'test',
-      customField: 'value',
-    }));
+    app.get('/test-headers-only', async (_req, res) => {
+      res.json({
+        data: 'test',
+        customField: 'value',
+      });
+    });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/test-headers-only');
 
@@ -155,10 +167,11 @@ describe('Response purity', () => {
     // Disable request ID functionality
     resetExpressApiConfig();
 
-    const routes = getTestRoutes();
-    routes.get('/test-no-headers', async () => ({
-      data: 'test',
-    }));
+    const app = getTestApp();
+    app.get('/test-no-headers', async (_req, res) => {
+      res.json({ data: 'test' });
+    });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/test-no-headers');
 

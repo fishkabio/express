@@ -2,7 +2,13 @@ import { assertTruthy, truthy } from '@fishka/assertions';
 import express, { Express } from 'express';
 import http from 'http';
 import { AddressInfo } from 'net';
-import { configureExpressApi, createTlsMiddleware, HTTP_INTERNAL_SERVER_ERROR, RouteTable } from '../src';
+import {
+  catchAllMiddleware,
+  configureExpressApi,
+  createTlsMiddleware,
+  HTTP_INTERNAL_SERVER_ERROR,
+  patchExpressAsyncErrors,
+} from '../src';
 
 /**
  * Shared test server that is created once and reused across all e2e tests.
@@ -21,12 +27,21 @@ export async function initializeTestServer(): Promise<void> {
     return;
   }
 
+  // Patch Express to handle async errors automatically
+  patchExpressAsyncErrors();
+
   // Configure request ID for tests (enabled by default for backward compatibility)
   configureExpressApi({ requestIdHeader: 'x-request-id' });
 
   const app = express();
   app.use(express.json());
   app.use(createTlsMiddleware());
+
+  // Add error handling middleware at the end (will be last after all routes)
+  // We use a trick: add it now, and it will be moved to the end by Express
+  // when other routes are added. Actually, we need to add it AFTER routes.
+  // So we don't add it here - tests should add routes and then call app.use(catchAllMiddleware)
+
   testApp = app;
 
   await new Promise<void>(resolve => {
@@ -59,9 +74,12 @@ export function getTestApp(): Express {
   return truthy(testApp, 'Test server not initialized. Call initializeTestServer first.');
 }
 
-/** Get a new route table for the shared app. */
-export function getTestRoutes(): RouteTable {
-  return new RouteTable(getTestApp());
+/**
+ * Adds error handling middleware to the app.
+ * Call this after all routes are registered.
+ */
+export function addErrorHandling(app: Express): void {
+  app.use(catchAllMiddleware);
 }
 
 /** Get the port the test server is running on. */

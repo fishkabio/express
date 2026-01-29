@@ -7,6 +7,9 @@ import { getRequestLocalStorage } from './thread-local/thread-local-storage';
 
 import { ExpressFunction, ExpressRequest, ExpressResponse } from './utils/express.utils';
 
+// Track if async errors patch is already applied
+let asyncErrorsPatchApplied = false;
+
 /**
  * Converts any error into a standardized API response format.
  * - HttpError: Uses the error's status code and message
@@ -108,6 +111,79 @@ export async function catchAllMiddleware(
       : buildApiResponse(error);
   res.status(apiResponse.status);
   res.send(apiResponse);
+}
+
+/**
+ * Patches Express to automatically catch errors from async route handlers.
+ * Call this once at application startup, before defining routes.
+ *
+ * After patching, you can use async handlers without try/catch:
+ * @example
+ * patchExpressAsyncErrors();
+ *
+ * const app = express();
+ *
+ * app.get('/users', async (req, res) => {
+ *   const user = await getUser(); // если упадёт - catchAllMiddleware поймает
+ *   res.json(user);
+ * });
+ *
+ * app.use(catchAllMiddleware);
+ *
+ * Note: This patches Express internal API. Works with Express 4.x and 5.x.
+ * Safe to call multiple times - patch applies only once.
+ */
+export function patchExpressAsyncErrors(): void {
+  if (asyncErrorsPatchApplied) {
+    return;
+  }
+  asyncErrorsPatchApplied = true;
+
+  // We use require here to access Express internals
+  // This is the only way to patch the Layer prototype
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const express = require('express');
+
+  // Get the Layer constructor from Express internals
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Layer = (express as any).Router?.constructor || getLayerFromExpress();
+
+  if (!Layer || !Layer.prototype) {
+    console.warn('patchExpressAsyncErrors: Could not find Express Layer prototype');
+    return;
+  }
+
+  const originalHandle = Layer.prototype.handle_request;
+
+  Layer.prototype.handle_request = function handle_request(
+    req: ExpressRequest,
+    res: ExpressResponse,
+    next: NextFunction,
+  ): unknown {
+    const result = originalHandle.call(this, req, res, next);
+
+    // If result is a Promise, catch errors and pass to next()
+    if (result !== null && typeof result === 'object' && typeof result.catch === 'function') {
+      result.catch(next);
+    }
+
+    return result;
+  };
+}
+
+/**
+ * Helper function to get Layer from Express internals.
+ * This is needed because Express doesn't export Layer directly.
+ */
+function getLayerFromExpress(): unknown {
+  try {
+    // Try to require the layer module directly
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const layerModule = require('express/lib/router/layer');
+    return layerModule.default || layerModule;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Options for installProcessHandlers(). */

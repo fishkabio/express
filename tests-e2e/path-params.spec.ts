@@ -1,21 +1,16 @@
 import { describe, expect, it } from '@jest/globals';
 import express from 'express';
-import { assertHttp, HTTP_BAD_REQUEST, HTTP_OK, mount } from '../src';
-import { getTestApp, makeRequest } from './test-setup';
+import { assertHttp, HTTP_BAD_REQUEST, HTTP_OK, pathParam, queryParam } from '../src';
+import { addErrorHandling, getTestApp, makeRequest } from './test-setup';
 
 describe('Path parameters tests', () => {
   it('should handle simple path parameters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'users/:userId',
-      endpoint: {
-        run: async ctx => ({
-          userId: ctx.path('userId'),
-        }),
-      },
+    app.get('/users/:userId', async (req, res) => {
+      res.json({ userId: pathParam(req, 'userId') });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/users/123');
 
@@ -26,16 +21,13 @@ describe('Path parameters tests', () => {
   it('should handle multiple path parameters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'users/:userId/posts/:postId',
-      endpoint: {
-        run: async ctx => ({
-          userId: ctx.path('userId'),
-          postId: ctx.path('postId'),
-        }),
-      },
+    app.get('/users/:userId/posts/:postId', async (req, res) => {
+      res.json({
+        userId: pathParam(req, 'userId'),
+        postId: pathParam(req, 'postId'),
+      });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/users/123/posts/456');
 
@@ -48,17 +40,12 @@ describe('Path parameters tests', () => {
 
     const apiRouter = express.Router();
 
-    mount(apiRouter, {
-      method: 'get',
-      path: 'items/:itemId',
-      endpoint: {
-        run: async ctx => ({
-          itemId: ctx.path('itemId'),
-        }),
-      },
+    apiRouter.get('/items/:itemId', async (req, res) => {
+      res.json({ itemId: pathParam(req, 'itemId') });
     });
 
     app.use('/api', apiRouter);
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/api/items/789');
 
@@ -69,17 +56,14 @@ describe('Path parameters tests', () => {
   it('should handle path parameters with query parameters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'products/:productId',
-      endpoint: {
-        run: async ctx => ({
-          productId: ctx.path('productId'),
-          page: ctx.query('page'),
-          limit: ctx.query('limit'),
-        }),
-      },
+    app.get('/products/:productId', async (req, res) => {
+      res.json({
+        productId: pathParam(req, 'productId'),
+        page: queryParam(req, 'page'),
+        limit: queryParam(req, 'limit'),
+      });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/products/abc123?page=2&limit=10');
 
@@ -90,18 +74,13 @@ describe('Path parameters tests', () => {
   it('should handle path parameters with validation using assertHttp', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'orders/:orderId',
-      endpoint: {
-        run: async ctx => {
-          const orderId = ctx.path('orderId');
-          // Simple validation - orderId should be numeric
-          assertHttp(/^\d+$/.test(orderId), HTTP_BAD_REQUEST, 'Order ID must be numeric');
-          return { orderId };
-        },
-      },
+    app.get('/orders/:orderId', async (req, res) => {
+      const orderId = pathParam(req, 'orderId');
+      // Simple validation - orderId should be numeric
+      assertHttp(/^\d+$/.test(orderId), HTTP_BAD_REQUEST, 'Order ID must be numeric');
+      res.json({ orderId });
     });
+    addErrorHandling(app);
 
     // Valid request
     const validResponse = await makeRequest('GET', '/orders/12345');
@@ -116,17 +95,14 @@ describe('Path parameters tests', () => {
   it('should handle complex path patterns', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'categories/:categoryId/products/:productId/variants/:variantId',
-      endpoint: {
-        run: async ctx => ({
-          categoryId: ctx.path('categoryId'),
-          productId: ctx.path('productId'),
-          variantId: ctx.path('variantId'),
-        }),
-      },
+    app.get('/categories/:categoryId/products/:productId/variants/:variantId', async (req, res) => {
+      res.json({
+        categoryId: pathParam(req, 'categoryId'),
+        productId: pathParam(req, 'productId'),
+        variantId: pathParam(req, 'variantId'),
+      });
     });
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/categories/electronics/products/laptop/variants/16gb-ram');
 
@@ -143,18 +119,15 @@ describe('Path parameters tests', () => {
 
     const v1Router = express.Router();
 
-    mount(v1Router, {
-      method: 'get',
-      path: 'projects/:projectId/tasks/:taskId',
-      endpoint: {
-        run: async ctx => ({
-          projectId: ctx.path('projectId'),
-          taskId: ctx.path('taskId'),
-        }),
-      },
+    v1Router.get('/projects/:projectId/tasks/:taskId', async (req, res) => {
+      res.json({
+        projectId: pathParam(req, 'projectId'),
+        taskId: pathParam(req, 'taskId'),
+      });
     });
 
     app.use('/api/v1', v1Router);
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/api/v1/projects/proj-123/tasks/task-456');
 
@@ -165,17 +138,12 @@ describe('Path parameters tests', () => {
   it('should handle missing required path parameters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'required/:id',
-      endpoint: {
-        run: async ctx => {
-          // ctx.path() will throw if id is missing
-          const id = ctx.path('id');
-          return { id };
-        },
-      },
+    app.get('/required/:id', async (req, res) => {
+      // pathParam() will throw if id is missing
+      const id = pathParam(req, 'id');
+      res.json({ id });
     });
+    addErrorHandling(app);
 
     // Valid request with path parameter
     const validResponse = await makeRequest('GET', '/required/123');
@@ -189,15 +157,10 @@ describe('Path parameters tests', () => {
   it('should handle path parameters with special characters', async () => {
     const app = getTestApp();
 
-    mount(app, {
-      method: 'get',
-      path: 'files/:fileName',
-      endpoint: {
-        run: async ctx => ({
-          fileName: ctx.path('fileName'),
-        }),
-      },
+    app.get('/files/:fileName', async (req, res) => {
+      res.json({ fileName: pathParam(req, 'fileName') });
     });
+    addErrorHandling(app);
 
     // Test with various special characters that are URL-encoded
     const response = await makeRequest('GET', '/files/document%20with%20spaces.pdf');
@@ -212,19 +175,16 @@ describe('Path parameters tests', () => {
 
     const adminRouter = express.Router();
 
-    mount(adminRouter, {
-      method: 'get',
-      path: 'users/:userId/logs',
-      endpoint: {
-        run: async ctx => ({
-          userId: ctx.path('userId'),
-          page: ctx.query('page'),
-          type: ctx.query('type'),
-        }),
-      },
+    adminRouter.get('/users/:userId/logs', async (req, res) => {
+      res.json({
+        userId: pathParam(req, 'userId'),
+        page: queryParam(req, 'page'),
+        type: queryParam(req, 'type'),
+      });
     });
 
     app.use('/api/admin', adminRouter);
+    addErrorHandling(app);
 
     const response = await makeRequest('GET', '/api/admin/users/admin-123/logs?page=1&type=error');
 

@@ -2,6 +2,7 @@ import { assertString, assertTruthy } from '@fishka/assertions';
 import {
   BasicAuthStrategy,
   BearerAuthStrategy,
+  body,
   createAuthMiddleware,
   getAuthUser,
   HTTP_INTERNAL_SERVER_ERROR,
@@ -9,40 +10,35 @@ import {
   matches,
   min,
   minLength,
+  pathParam,
+  queryParam,
   range,
-  RequestContext,
   toInt,
   transform,
 } from '../src';
-import { getApiResult, getTestRoutes, makeRequest } from './test-setup';
+import { addErrorHandling, getApiResult, getTestApp, makeRequest } from './test-setup';
 
 describe('Core + Auth E2E Integration', () => {
   describe('Core routing (top-level paths, no version)', () => {
-    it('should handle GET requests at top-level path with object syntax', async () => {
-      const routes = getTestRoutes();
-      routes.get('health', {
-        run: async () => ({ value: 'healthy' }),
+    it('should handle GET requests at top-level path', async () => {
+      const app = getTestApp();
+      app.get('/health', async (_req, res) => {
+        res.json({ value: 'healthy' });
       });
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/health');
       expect(response.status).toBe(200);
       expect(getApiResult<{ value: string }>(response).value).toBe('healthy');
     });
 
-    it('should handle GET requests at top-level path with function shorthand', async () => {
-      const routes = getTestRoutes();
-      routes.get<{ value: string }>('health-short', async () => ({ value: 'healthy-short' }));
-
-      const response = await makeRequest('GET', '/health-short');
-      expect(response.status).toBe(200);
-      expect(getApiResult<{ value: string }>(response).value).toBe('healthy-short');
-    });
-
     it('should handle POST requests at top-level path', async () => {
-      const routes = getTestRoutes();
-      routes.post('items', async ctx => ({
-        value: ctx.body({ name: assertString }).name,
-      }));
+      const app = getTestApp();
+      app.post('/items', async (req, res) => {
+        const requestBody = body(req, { name: assertString });
+        res.json({ value: requestBody.name });
+      });
+      addErrorHandling(app);
 
       const response = await makeRequest('POST', '/items', { body: { name: 'Test' } });
       expect(response.status).toBe(200);
@@ -50,10 +46,11 @@ describe('Core + Auth E2E Integration', () => {
     });
 
     it('should handle PUT requests at top-level path', async () => {
-      const routes = getTestRoutes();
-      routes.put('items/:id', async ctx => ({
-        value: ctx.req.params['id'],
-      }));
+      const app = getTestApp();
+      app.put('/items/:id', async (req, res) => {
+        res.json({ value: req.params['id'] });
+      });
+      addErrorHandling(app);
 
       const response = await makeRequest('PUT', '/items/123', { body: { name: 'Updated' } });
       expect(response.status).toBe(200);
@@ -61,39 +58,35 @@ describe('Core + Auth E2E Integration', () => {
     });
 
     it('should handle PATCH requests at top-level path', async () => {
-      const routes = getTestRoutes();
-      routes.patch('items/:id', async () => ({
-        value: 'none',
-      }));
+      const app = getTestApp();
+      app.patch('/items/:id', async (_req, res) => {
+        res.json({ value: 'none' });
+      });
+      addErrorHandling(app);
 
       const response = await makeRequest('PATCH', '/items/456', { body: { name: 'Patched' } });
       expect(response.status).toBe(200);
       expect(getApiResult<{ value: string }>(response).value).toBe('none');
     });
 
-    it('should handle DELETE requests at top-level path with object syntax', async () => {
-      const routes = getTestRoutes();
-      routes.delete('items/:id', {
-        run: async () => {},
+    it('should handle DELETE requests at top-level path', async () => {
+      const app = getTestApp();
+      app.delete('/items/:id', async (_req, res) => {
+        res.json({});
       });
+      addErrorHandling(app);
 
       const response = await makeRequest('DELETE', '/items/789');
       expect(response.status).toBe(200);
     });
 
-    it('should handle DELETE requests at top-level path with function shorthand', async () => {
-      const routes = getTestRoutes();
-      routes.delete('items-short/:id', async () => {});
-
-      const response = await makeRequest('DELETE', '/items-short/789');
-      expect(response.status).toBe(200);
-    });
-
     it('should return 400 for invalid request body', async () => {
-      const routes = getTestRoutes();
-      routes.post('validate-test', async ctx => ({
-        value: ctx.body({ name: v => assertString(v, '400: name required') }).name,
-      }));
+      const app = getTestApp();
+      app.post('/validate-test', async (req, res) => {
+        const requestBody = body(req, { name: (v: unknown) => assertString(v, '400: name required') });
+        res.json({ value: requestBody.name });
+      });
+      addErrorHandling(app);
 
       const response = await makeRequest('POST', '/validate-test', { body: { name: 1 } });
       expect(response.status).toBe(400);
@@ -102,36 +95,32 @@ describe('Core + Auth E2E Integration', () => {
 
   describe('Authentication', () => {
     it('should deny request without Authorization header', async () => {
-      const routes = getTestRoutes();
+      const app = getTestApp();
       const strategy = new BasicAuthStrategy(async (u, p) =>
         u === 'admin' && p === 'secret' ? { id: '1', username: u } : null,
       );
 
-      routes.get<{ value: string }>('protected', {
-        middlewares: [createAuthMiddleware(strategy)],
-        run: async (ctx: RequestContext) => {
-          const user = getAuthUser(ctx) as { id: string };
-          return { value: user.id };
-        },
+      app.get('/protected', createAuthMiddleware(strategy), async (req, res) => {
+        const user = getAuthUser(req) as { id: string };
+        res.json({ value: user.id });
       });
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/protected');
       expect(response.status).toBe(HTTP_UNAUTHORIZED);
     });
 
     it('should allow request with valid credentials', async () => {
-      const routes = getTestRoutes();
+      const app = getTestApp();
       const strategy = new BasicAuthStrategy(async (u, p) =>
         u === 'user' && p === 'pass' ? { id: 'user-1', username: u } : null,
       );
 
-      routes.get<{ value: string }>('secure', {
-        middlewares: [createAuthMiddleware(strategy)],
-        run: async (ctx: RequestContext) => {
-          const user = getAuthUser(ctx) as { id: string };
-          return { value: user.id };
-        },
+      app.get('/secure', createAuthMiddleware(strategy), async (req, res) => {
+        const user = getAuthUser(req) as { id: string };
+        res.json({ value: user.id });
       });
+      addErrorHandling(app);
 
       const credentials = Buffer.from('user:pass').toString('base64');
       const response = await makeRequest('GET', '/secure', {
@@ -142,18 +131,16 @@ describe('Core + Auth E2E Integration', () => {
     });
 
     it('should authenticate with Bearer token', async () => {
-      const routes = getTestRoutes();
+      const app = getTestApp();
       const strategy = new BearerAuthStrategy(async token =>
         token === 'valid-token' ? { id: 'user-2', username: 'bearer-user' } : null,
       );
 
-      routes.get<{ value: string }>('bearer-protected', {
-        middlewares: [createAuthMiddleware(strategy)],
-        run: async ctx => {
-          const user = getAuthUser(ctx) as { id: string };
-          return { value: user.id };
-        },
+      app.get('/bearer-protected', createAuthMiddleware(strategy), async (req, res) => {
+        const user = getAuthUser(req) as { id: string };
+        res.json({ value: user.id });
       });
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/bearer-protected', {
         headers: { Authorization: 'Bearer valid-token' },
@@ -163,13 +150,13 @@ describe('Core + Auth E2E Integration', () => {
     });
 
     it('should reject invalid Bearer token', async () => {
-      const routes = getTestRoutes();
+      const app = getTestApp();
       const strategy = new BearerAuthStrategy(async () => null);
 
-      routes.get('bearer-invalid', {
-        middlewares: [createAuthMiddleware(strategy)],
-        run: async () => ({}),
+      app.get('/bearer-invalid', createAuthMiddleware(strategy), async (_req, res) => {
+        res.json({});
       });
+      addErrorHandling(app);
 
       const response = await makeRequest('GET', '/bearer-invalid', {
         headers: { Authorization: 'Bearer invalid' },
@@ -179,11 +166,14 @@ describe('Core + Auth E2E Integration', () => {
   });
 
   describe('Parameter validation', () => {
-    it('should validate path parameters with ctx.path()', async () => {
-      const routes = getTestRoutes();
-      routes.get('validate-path/:id', async ctx => ({
-        id: ctx.path('id', transform(minLength(3, 'ID too short'))),
-      }));
+    it('should validate path parameters with pathParam()', async () => {
+      const app = getTestApp();
+      app.get('/validate-path/:id', async (req, res) => {
+        res.json({
+          id: pathParam(req, 'id', transform(minLength(3, 'ID too short'))),
+        });
+      });
+      addErrorHandling(app);
 
       // Valid request
       const validResponse = await makeRequest('GET', '/validate-path/abc123');
@@ -197,11 +187,14 @@ describe('Core + Auth E2E Integration', () => {
       expect(errorBody.error).toContain('ID too short');
     });
 
-    it('should validate query parameters with ctx.query()', async () => {
-      const routes = getTestRoutes();
-      routes.get('validate-query', async ctx => ({
-        page: ctx.query('page', transform(toInt('page must be a number'), min(1, 'page must be >= 1'))),
-      }));
+    it('should validate query parameters with queryParam()', async () => {
+      const app = getTestApp();
+      app.get('/validate-query', async (req, res) => {
+        res.json({
+          page: queryParam(req, 'page', transform(toInt('page must be a number'), min(1, 'page must be >= 1'))),
+        });
+      });
+      addErrorHandling(app);
 
       // Valid request
       const validResponse = await makeRequest('GET', '/validate-query?page=5');
@@ -228,14 +221,18 @@ describe('Core + Auth E2E Integration', () => {
     });
 
     it('should validate both path and query parameters together', async () => {
-      const routes = getTestRoutes();
-      routes.get('validate-both/:id', async ctx => ({
-        id: ctx.path('id', transform(matches(/^[a-z0-9]+$/, 'ID must be alphanumeric'))),
-        limit: ctx.query(
-          'limit',
-          transform(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100')),
-        ),
-      }));
+      const app = getTestApp();
+      app.get('/validate-both/:id', async (req, res) => {
+        res.json({
+          id: pathParam(req, 'id', transform(matches(/^[a-z0-9]+$/, 'ID must be alphanumeric'))),
+          limit: queryParam(
+            req,
+            'limit',
+            transform(toInt('limit must be a number'), range(1, 100, 'limit must be between 1 and 100')),
+          ),
+        });
+      });
+      addErrorHandling(app);
 
       // Valid request
       const validResponse = await makeRequest('GET', '/validate-both/abc123?limit=50');
@@ -257,13 +254,14 @@ describe('Core + Auth E2E Integration', () => {
       expect(errorQueryBody.error).toContain('limit must be between 1 and 100');
     });
 
-    it('should work with function shorthand and validation', async () => {
-      const routes = getTestRoutes();
-      routes.get<{ id: string }>('short-validate/:id', async ctx => {
-        const id = ctx.req.params['id']!;
+    it('should work with validation in handler', async () => {
+      const app = getTestApp();
+      app.get('/short-validate/:id', async (req, res) => {
+        const id = req.params['id']!;
         assertTruthy(id.length >= 5, 'ID must be at least 5 characters');
-        return { id };
+        res.json({ id });
       });
+      addErrorHandling(app);
 
       // Valid request
       const validResponse = await makeRequest('GET', '/short-validate/abcde');
