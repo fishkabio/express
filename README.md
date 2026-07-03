@@ -1,5 +1,7 @@
 # Express API
 
+Part of [fishka.bio](https://fishka.bio) — free browser-based bioinformatics tools.
+
 Functional utilities for Express.js with type-safe validation and error handling.
 
 ## Installation
